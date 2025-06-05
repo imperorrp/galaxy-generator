@@ -24,5 +24,6 @@ export interface StarData {
     isKeySystem?: boolean;
     factionId?: string;
     planets: PlanetData[];
+    textureIndex?: number; // Index for selecting star texture
     // ... other strategic properties
 }

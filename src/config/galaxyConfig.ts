@@ -1,0 +1,2 @@
+export const NUM_COMMON_STAR_TEXTURES = 7;
+export const NUM_RARE_STAR_TEXTURES = 5;

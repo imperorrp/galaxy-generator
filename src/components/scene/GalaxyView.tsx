@@ -1,9 +1,18 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, Fragment } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { PointMaterial, Html, Stars as DreiStars, useTexture } from '@react-three/drei';
 import { generateGalaxyData, GALAXY_RADIUS } from '../../services/galaxyService';
 import type { StarData } from '../../types/galaxy';
+import { NUM_COMMON_STAR_TEXTURES, NUM_RARE_STAR_TEXTURES } from '../../config/galaxyConfig'; // Import from config
+
+// const NUM_COMMON_STAR_TEXTURES = 7; // Remove local declaration
+// const NUM_RARE_STAR_TEXTURES = 5; // Remove local declaration
+const NUM_STAR_TEXTURES = NUM_COMMON_STAR_TEXTURES + NUM_RARE_STAR_TEXTURES;
+
+const commonStarTexturePaths = Array.from({ length: NUM_COMMON_STAR_TEXTURES }, (_, i) => `/assets/textures/stars/star_${i}.png`);
+const rareStarTexturePaths = Array.from({ length: NUM_RARE_STAR_TEXTURES }, (_, i) => `/assets/textures/stars/star_${String.fromCharCode(97 + i)}.png`); // star_a, star_b, ...
+const starTexturePaths = [...commonStarTexturePaths, ...rareStarTexturePaths];
 import NebulaCloud from './NebulaCloud'; // Import the NebulaCloud component
 
 interface HoveredStarInfo {
@@ -16,31 +25,50 @@ interface GalaxyViewProps {
 }
 
 const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect }) => {
-    const { stars, positions, colors } = useMemo(() => generateGalaxyData(), []);
-    const pointsRef = useRef<THREE.Points>(null!);
+    const galaxyData = useMemo(() => generateGalaxyData(), []);
+    // const pointsRef = useRef<THREE.Points>(null!); // Will need an array of refs if individual control is needed later
+    const loadedStarTextures = useTexture(starTexturePaths);
+
+    const starGroups = useMemo(() => {
+        const groups: Array<{ stars: StarData[], positions: Float32Array, colors: Float32Array, textureIndex: number }> = [];
+        for (let i = 0; i < NUM_STAR_TEXTURES; i++) {
+            const filteredStars = galaxyData.stars.filter(star => star.textureIndex === i);
+            if (filteredStars.length === 0) continue;
+
+            const positions = new Float32Array(filteredStars.length * 3);
+            const colors = new Float32Array(filteredStars.length * 3);
+            
+            filteredStars.forEach((star, idx) => {
+                positions[idx * 3] = star.position.x;
+                positions[idx * 3 + 1] = star.position.y;
+                positions[idx * 3 + 2] = star.position.z;
+                colors[idx * 3] = star.color.r;
+                colors[idx * 3 + 1] = star.color.g;
+                colors[idx * 3 + 2] = star.color.b;
+            });
+            groups.push({ stars: filteredStars, positions, colors, textureIndex: i });
+        }
+        return groups;
+    }, [galaxyData]);
+
+    const pointsRef = useRef<THREE.Points>(null!); // This ref is not used with multiple points groups currently
     const [hoveredStar, setHoveredStar] = useState<HoveredStarInfo | null>(null);
     const [selectedStar, setSelectedStar] = useState<StarData | null>(null);
 
-    const starTexture = useTexture('/assets/textures/star_particle.png'); // Load star texture
-
     // Optional: Add a slight rotation to the galaxy for visual effect
-    useFrame((_state /*, delta */) => {
-        if (pointsRef.current) {
-            // pointsRef.current.rotation.y += delta * 0.01; // Keep rotation commented out for now
-        }
-    });
+    // useFrame((_state, delta) => {
+    //     // If rotating, apply to each group or a parent group
+    // });
 
-    const handlePointerOver = (event: ThreeEvent<PointerEvent>) => {
+    const handlePointerOver = (event: ThreeEvent<PointerEvent>, groupStars: StarData[]) => {
         event.stopPropagation();
-        if (event.index !== undefined) {
-            const starIndex = event.index;
-            const starData = stars[starIndex];
+        if (event.index !== undefined && groupStars) {
+            const starData = groupStars[event.index];
             if (starData) {
                 setHoveredStar({
                     name: starData.name,
                     position: starData.position.clone(), // Clone to avoid modifying original data
                 });
-                // Optionally change cursor style
                 document.body.style.cursor = 'pointer';
             }
         }
@@ -49,15 +77,13 @@ const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect }) => {
     const handlePointerOut = (event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation();
         setHoveredStar(null);
-        // Reset cursor style
         document.body.style.cursor = 'auto';
     };
 
-    const handleClick = (event: ThreeEvent<MouseEvent>) => {
+    const handleClick = (event: ThreeEvent<MouseEvent>, groupStars: StarData[]) => {
         event.stopPropagation();
-        if (event.index !== undefined) {
-            const starIndex = event.index;
-            const starData = stars[starIndex];
+        if (event.index !== undefined && groupStars) {
+            const starData = groupStars[event.index];
             if (starData) {
                 setSelectedStar(starData); // Keep local state for info display if needed
                 onStarSelect(starData); // Call the handler passed from App.tsx
@@ -71,34 +97,36 @@ const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect }) => {
 
     return (
         <>
-            <points 
-                ref={pointsRef}
-                onPointerOver={handlePointerOver}
-                onPointerOut={handlePointerOut}
-                onClick={handleClick}
-                // onPointerMove={handlePointerMove} // If more precise tracking is needed
-            >
-                <bufferGeometry attach="geometry">
-                    <bufferAttribute
-                        attach="attributes-position"
-                        args={[positions, 3]}
+            {starGroups.map((group, groupIndex) => (
+                <points
+                    key={groupIndex}
+                    // ref={el => pointsRefs.current[groupIndex] = el} // Example if array of refs is needed
+                    onPointerOver={(e) => handlePointerOver(e, group.stars)}
+                    onPointerOut={handlePointerOut} // No group specific data needed for pointer out
+                    onClick={(e) => handleClick(e, group.stars)}
+                >
+                    <bufferGeometry attach="geometry">
+                        <bufferAttribute
+                            attach="attributes-position"
+                            args={[group.positions, 3]}
+                        />
+                        <bufferAttribute
+                            attach="attributes-color"
+                            args={[group.colors, 3]}
+                        />
+                    </bufferGeometry>
+                    <PointMaterial
+                        transparent
+                        vertexColors
+                        size={15} // Increased size slightly for better visibility
+                        sizeAttenuation={true}
+                        depthWrite={false}
+                        alphaTest={0.01} // Helps with transparency artifacts
+                        blending={THREE.AdditiveBlending} // Brighter, more star-like appearance
+                        map={loadedStarTextures[group.textureIndex % loadedStarTextures.length]} // Apply the texture for this group
                     />
-                    <bufferAttribute
-                        attach="attributes-color"
-                        args={[colors, 3]}
-                    />
-                </bufferGeometry>
-                <PointMaterial
-                    transparent
-                    vertexColors
-                    size={15} // Increased size slightly for better visibility
-                    sizeAttenuation={true}
-                    depthWrite={false}
-                    alphaTest={0.01} // Helps with transparency artifacts
-                    blending={THREE.AdditiveBlending} // Brighter, more star-like appearance
-                    map={starTexture} // Apply the texture to the points
-                />
-            </points>
+                </points>
+            ))}
             {hoveredStar && (
                 <Html position={hoveredStar.position} distanceFactor={100}>
                     <div style={{
