@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import { PointMaterial, Html, Stars as DreiStars } from '@react-three/drei'; // Removed useTexture
+import { PointMaterial, Html, Stars as DreiStars, useTexture } from '@react-three/drei';
 import { generateGalaxyData, GALAXY_RADIUS } from '../../services/galaxyService';
 import type { StarData } from '../../types/galaxy';
 import NebulaCloud from './NebulaCloud'; // Import the NebulaCloud component
@@ -21,7 +21,7 @@ const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect }) => {
     const [hoveredStar, setHoveredStar] = useState<HoveredStarInfo | null>(null);
     const [selectedStar, setSelectedStar] = useState<StarData | null>(null);
 
-    // const starTexture = useTexture('/assets/textures/star_particle.png'); // Load star texture - REMOVED
+    const starTexture = useTexture('/assets/textures/star_particle.png'); // Load star texture
 
     // Optional: Add a slight rotation to the galaxy for visual effect
     useFrame((_state /*, delta */) => {
@@ -96,7 +96,7 @@ const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect }) => {
                     depthWrite={false}
                     alphaTest={0.01} // Helps with transparency artifacts
                     blending={THREE.AdditiveBlending} // Brighter, more star-like appearance
-                    // map={starTexture} // Apply the texture to the points - REMOVED
+                    map={starTexture} // Apply the texture to the points
                 />
             </points>
             {hoveredStar && (

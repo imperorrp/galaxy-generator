@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { StarData, PlanetData } from '../types/galaxy';
+import type { StarData, PlanetData } from '../types/galaxy';
 
 const NUM_STARS = 1000; // Example number of stars
 export const GALAXY_RADIUS = 500;
