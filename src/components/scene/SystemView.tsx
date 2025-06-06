@@ -17,7 +17,7 @@ const SystemView: React.FC<SystemViewProps> = ({ starData }) => {
     <group>
       {/* Placeholder for the star mesh */}
       <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[starData.size || 1, 32, 32]} />
+        <sphereGeometry args={[(starData.size || 1) * 20, 32, 32]} />
         <meshStandardMaterial color={starData.color.clone()} emissive={starData.color.clone()} emissiveIntensity={2} />
         <pointLight color={starData.color.clone()} intensity={1.5} distance={500} />
       </mesh>

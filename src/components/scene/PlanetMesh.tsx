@@ -33,7 +33,7 @@ const PlanetMesh: React.FC<PlanetMeshProps> = ({ planetData, starPosition }) => 
 
   return (
     <mesh ref={meshRef}>
-      <sphereGeometry args={[planetData.size, 32, 32]} />
+      <sphereGeometry args={[planetData.size , 32, 32]} />
       <meshStandardMaterial color={materialColor} />
     </mesh>
   );
