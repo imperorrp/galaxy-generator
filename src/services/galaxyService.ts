@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import type { StarData, PlanetData } from '../types/galaxy';
 import { NUM_COMMON_STAR_TEXTURES, NUM_RARE_STAR_TEXTURES } from '../config/galaxyConfig';
 
-const NUM_STARS = 1000; // Example number of stars
-export const GALAXY_RADIUS = 500;
+const NUM_STARS = 500; // Reverted star count, implementing user requests for structure changes
+export const GALAXY_RADIUS = 1000;
 
 // Helper function to generate a random name (simple version)
 const generateRandomName = (): string => {
@@ -15,7 +15,7 @@ const generateRandomName = (): string => {
 
 // Helper to generate some placeholder planets for a star
 const generatePlanets = (starId: string): PlanetData[] => {
-    const numPlanets = Math.floor(Math.random() * 5) + 1; // 1 to 5 planets
+    const numPlanets = Math.floor(Math.random() * 6) + 3; // 3 to 8 planets
     const planets: PlanetData[] = [];
     const planetTypes: PlanetData['type'][] = ['terrestrial', 'gas_giant', 'ice', 'desert', 'volcanic', 'oceanic', 'barren'];
 
@@ -40,17 +40,33 @@ export interface GalaxyData {
     sizes: Float32Array; // Added for star sizes
 }
 
-// Spiral Galaxy Parameters
-const NUM_ARMS = 2;
-const ARM_SEPARATION_ANGLE = (2 * Math.PI) / NUM_ARMS;
-const ARM_THICKNESS = GALAXY_RADIUS * 0.2; 
-const ARM_LENGTH_FACTOR = 1.0; // Controls how far arms extend along the spiral curve relative to GALAXY_RADIUS
-const SPIRAL_B = 0.35; // Tightness of the spiral (higher means tighter turns for a given change in r)
-const BULGE_RATIO_STARS = 0.3; // 30% of stars in the bulge
-const BULGE_RADIUS_XY = GALAXY_RADIUS * 0.20; // Radius of the bulge in XZ plane
-const BULGE_RADIUS_Y = GALAXY_RADIUS * 0.10;  // Height of the bulge in Y axis
-const SPIRAL_A = BULGE_RADIUS_XY; // Start radius of arms, from edge of bulge
-const DISK_THICKNESS_Y = GALAXY_RADIUS * 0.025; // Thickness of the disk for arm stars
+// New Galaxy Parameters (inspired by new-galaxy-generation-ideas)
+const GALAXY_PARAMS = {
+    numArms: 4, // Number of spiral arms
+    spiralTightness: 0.4, // Controls how tightly arms are wound
+    spiralAngleFactor: 12, // Multiplier for the angle calculation, affecting arm curvature
+
+    armWidth: 120.0, // Increased for thicker arms
+    armPointDensityPower: 2.5, // Adjusted for arm density
+    diskYScaleForArms: 0.30, // Flatter arms - Increased for thicker arms near core to show taper
+    subArmChance: 0.15, // Chance for a star to be part of a sub-arm like feature
+    subArmScatterFactor: 1.5, // How much more scatter for sub-arms
+    subArmAngleOffsetRange: Math.PI / 6, // Angular deviation for sub-arms
+
+    bulgeSizeFactor: 0.28, // Increased for a wider bulge (28% of GALAXY_RADIUS)
+    bulgeYScale: 0.6, // Bulge height is 60% of its radius, making it thicker
+    bulgeDensityPower: 2.0, // Power for Math.random() in bulge radius generation for denser core - Decreased for less dense core
+
+    centralBarLengthFactor: 0.25, // Bar length is 25% of GALAXY_RADIUS
+    centralBarWidthFactor: 0.05,  // Bar width is 5% of GALAXY_RADIUS
+    centralBarYScale: 0.3, // Thickness of the bar
+
+    diskStarFraction: 0.30, // 30% of stars are general disk stars (not strictly in arms)
+    diskStarYScale: 0.18, // General disk stars Y scale - now for inner edge of disk, will taper
+
+    colorInHex: '#ff9040', // Hotter/younger stars (e.g., orange-yellow)
+    colorOutHex: '#5070cc', // Cooler/older stars (e.g., blue-ish)
+};
 
 export const generateGalaxyData = (): GalaxyData => {
     const stars: StarData[] = [];
@@ -58,117 +74,215 @@ export const generateGalaxyData = (): GalaxyData => {
     const colors = new Float32Array(NUM_STARS * 3);
     const sizes = new Float32Array(NUM_STARS);
 
-    // Calculate maxTheta for arm generation based on GALAXY_RADIUS
-    // r = SPIRAL_A * exp(SPIRAL_B * theta) => GALAXY_RADIUS = SPIRAL_A * exp(SPIRAL_B * maxThetaArm)
-    // maxThetaArm = ln(GALAXY_RADIUS / SPIRAL_A) / SPIRAL_B
-    const maxThetaArm = (SPIRAL_A > 0 && SPIRAL_B > 0 && GALAXY_RADIUS > SPIRAL_A) ? Math.log(GALAXY_RADIUS / SPIRAL_A) / SPIRAL_B : Math.PI * 2;
+    const actualBulgeRadius = GALAXY_RADIUS * GALAXY_PARAMS.bulgeSizeFactor;
+    const actualArmWidth = GALAXY_PARAMS.armWidth;
+    const actualBarLength = GALAXY_RADIUS * GALAXY_PARAMS.centralBarLengthFactor;
+    const actualBarWidth = GALAXY_RADIUS * GALAXY_PARAMS.centralBarWidthFactor;
+
+    const colorInside = new THREE.Color(GALAXY_PARAMS.colorInHex);
+    const colorOutside = new THREE.Color(GALAXY_PARAMS.colorOutHex);
 
     for (let i = 0; i < NUM_STARS; i++) {
         const id = `star-${i}`;
+        const i3 = i * 3;
         let x, y, z;
-        let isBulgeStarThisIteration = false;
+        let starPrimaryRadius; // Represents pre-noise distance from galactic center, used for color and some structural logic
+        let starTypeGenerated; // To help with clamping and color logic: 'bar', 'bulge', 'arm', 'disk_general'
 
-        if (Math.random() < BULGE_RATIO_STARS) {
-            isBulgeStarThisIteration = true;
-            // Generate star in the central bulge (ellipsoidal distribution)
-            let dx, dy, dz;
-            do {
-                dx = (Math.random() * 2 - 1) * BULGE_RADIUS_XY;
-                dz = (Math.random() * 2 - 1) * BULGE_RADIUS_XY;
-                dy = (Math.random() * 2 - 1) * BULGE_RADIUS_Y;
-            } while ((dx * dx) / (BULGE_RADIUS_XY * BULGE_RADIUS_XY) +
-                     (dz * dz) / (BULGE_RADIUS_XY * BULGE_RADIUS_XY) +
-                     (dy * dy) / (BULGE_RADIUS_Y * BULGE_RADIUS_Y) > 1);
-            x = dx;
-            y = dy;
-            z = dz;
-        } else {
-            // Generate star in a spiral arm
-            const armIndex = Math.floor(Math.random() * NUM_ARMS);
-            const armAngleOffset = armIndex * ARM_SEPARATION_ANGLE;
+        // Determine star type and generate initial position
+        const typeRoll = Math.random();
 
-            // Angle along the spiral arm (theta for r = a*e^(b*theta))
-            const theta = Math.random() * maxThetaArm * ARM_LENGTH_FACTOR;
+        if (typeRoll < 0.15) { // 15% chance for bar
+            starTypeGenerated = 'bar';
+            // === CENTRAL BAR LOGIC ===
+            const fuzzinessFactor = 1.5; // How much "wider" the random placement can be
+            const barPosFactor = Math.pow(Math.random(), 1.5); // Skews towards center of bar length
 
-            const rBase = SPIRAL_A * Math.exp(SPIRAL_B * theta);
-            const finalAngle = theta + armAngleOffset;
+            x = (Math.random() - 0.5) * 2 * actualBarLength * barPosFactor;
+            z = (Math.random() - 0.5) * 2 * actualBarWidth * (1 + (Math.random() - 0.5) * (fuzzinessFactor -1));
+            y = (Math.random() - 0.5) * 2 * actualBarWidth * GALAXY_PARAMS.centralBarYScale * (1 + (Math.random() - 0.5) * (fuzzinessFactor -1));
+            starPrimaryRadius = Math.sqrt(x*x + z*z); // Effective radius for this bar star
 
-            // Point on the arm's centerline
-            const xSpiralCenter = rBase * Math.cos(finalAngle);
-            const zSpiralCenter = rBase * Math.sin(finalAngle);
+        } else if (typeRoll < 0.35) { // Next 20% for bulge (total 35%)
+            starTypeGenerated = 'bulge';
+            // === BULGE LOGIC ===
+            // Bulge stars are primarily outside the bar's main influence but can be close.
+            let r_bulge = Math.pow(Math.random(), GALAXY_PARAMS.bulgeDensityPower) * actualBulgeRadius;
+            // Ensure bulge stars are mostly outside the bar's core length, or start where bar ends.
+            if (r_bulge < actualBarLength * 0.6) {
+                r_bulge = actualBarLength * 0.6 + Math.random() * (actualBulgeRadius - actualBarLength * 0.6);
+            }
+            starPrimaryRadius = Math.max(r_bulge, actualBarLength * 0.5); // Ensure bulge radius is somewhat significant
+            starPrimaryRadius = Math.min(starPrimaryRadius, actualBulgeRadius); // Clamp to bulge radius
 
-            // Add scatter to make the arm thicker (circular cross-section, denser towards center)
-            const scatterAngleInArm = Math.random() * 2 * Math.PI;
-            const scatterRadiusInArm = Math.sqrt(Math.random()) * ARM_THICKNESS;
+            const phi = Math.random() * Math.PI * 2;
+            const costheta = Math.random() * 2 - 1;
+            const theta = Math.acos(costheta);
 
-            x = xSpiralCenter + scatterRadiusInArm * Math.cos(scatterAngleInArm);
-            z = zSpiralCenter + scatterRadiusInArm * Math.sin(scatterAngleInArm);
+            x = starPrimaryRadius * Math.sin(theta) * Math.cos(phi);
+            z = starPrimaryRadius * Math.sin(theta) * Math.sin(phi);
+            y = starPrimaryRadius * Math.cos(theta) * GALAXY_PARAMS.bulgeYScale;
+
+        } else if (typeRoll < 0.85) { // Next 50% for arms (total 85%)
+            starTypeGenerated = 'arm';
+            // === ARM LOGIC ===
+            // Arms start from outside the bar length.
+            // Generate radial position for the star along an arm.
+            starPrimaryRadius = actualBarLength + Math.pow(Math.random(), 1.8) * (GALAXY_RADIUS - actualBarLength);
+            starPrimaryRadius = Math.min(starPrimaryRadius, GALAXY_RADIUS); // Clamp to galaxy radius
+
+            const armIndex = i % GALAXY_PARAMS.numArms;
+            // effectiveRadiusForSpiral is 0 at bar end, up to (GALAXY_RADIUS - actualBarLength)
+            const effectiveRadiusForSpiral = Math.max(0, starPrimaryRadius - actualBarLength);
+            // normalizedEffectiveRadius is 0 at bar end, 1 at galaxy edge
+            const normalizedEffectiveRadius = Math.min(1, effectiveRadiusForSpiral / (GALAXY_RADIUS - actualBarLength));
+
+            const baseAngle = normalizedEffectiveRadius * GALAXY_PARAMS.spiralTightness * GALAXY_PARAMS.spiralAngleFactor;
+            let armAngleOffset = (armIndex / GALAXY_PARAMS.numArms) * Math.PI * 2;
+
+            // Tapered arm width: thicker near the bar (normalizedEffectiveRadius close to 0), thinner at the edge.
+            let taperFactorArm = Math.max(0.15, 1.0 - normalizedEffectiveRadius * 0.85); // Min thickness 15%, tapers to 15% at edge
+            let currentArmWidthArm = actualArmWidth * taperFactorArm;
+
+            if (Math.random() < GALAXY_PARAMS.subArmChance) {
+                // Sub-arm features: slightly offset angle and more scatter
+                armAngleOffset += (Math.random() - 0.5) * GALAXY_PARAMS.subArmAngleOffsetRange;
+                currentArmWidthArm *= GALAXY_PARAMS.subArmScatterFactor;
+            }
+
+            const totalAngle = baseAngle + armAngleOffset;
+
+            // Scatter points within the arm width
+            const scatterMagnitude = Math.pow(Math.random(), GALAXY_PARAMS.armPointDensityPower) * currentArmWidthArm;
+            const randomScatterX = scatterMagnitude * (Math.random() - 0.5) * 2;
+            const randomScatterZ = scatterMagnitude * (Math.random() - 0.5) * 2;
+
+            // Rotate scatter to align with arm direction
+            const rotatedScatterX = randomScatterX * Math.cos(totalAngle) - randomScatterZ * Math.sin(totalAngle);
+            const rotatedScatterZ = randomScatterX * Math.sin(totalAngle) + randomScatterZ * Math.cos(totalAngle);
+
+            x = Math.cos(totalAngle) * starPrimaryRadius + rotatedScatterX;
+            z = Math.sin(totalAngle) * starPrimaryRadius + rotatedScatterZ;
+            y = (Math.random() - 0.5) * 2 * currentArmWidthArm * GALAXY_PARAMS.diskYScaleForArms; // Y scatter for arm thickness
+
+        } else { // Remaining are general disk stars (total 15%)
+            starTypeGenerated = 'disk_general';
+            // === GENERAL DISK STAR LOGIC ===
+            // These stars are outside the bulge and not strictly in arms, forming a flatter disk.
+            starPrimaryRadius = actualBulgeRadius + Math.random() * (GALAXY_RADIUS - actualBulgeRadius);
+            starPrimaryRadius = Math.min(starPrimaryRadius, GALAXY_RADIUS);
+
+            const angle = Math.random() * Math.PI * 2;
+            x = Math.cos(angle) * starPrimaryRadius;
+            z = Math.sin(angle) * starPrimaryRadius;
             
-            // Vertical position (disk thickness), concentrated towards y=0
-            let y_rand_val = Math.random();
-            y = Math.pow(y_rand_val, 2) * DISK_THICKNESS_Y * (Math.random() < 0.5 ? 1 : -1);
+            // GENERAL DISK STAR LOGIC (Revised Y for tapering)
+            const diskRadiusRatio = Math.max(0, Math.min(1, (starPrimaryRadius - actualBulgeRadius) / (GALAXY_RADIUS - actualBulgeRadius)));
+            const taperFactorDisk = Math.max(0.15, 1.0 - diskRadiusRatio * 0.85); // Tapers to 15% thickness at the edge
+            const baseThicknessAtInnerDisk = GALAXY_RADIUS * GALAXY_PARAMS.diskStarYScale;
+            y = (Math.random() - 0.5) * 2 * baseThicknessAtInnerDisk * taperFactorDisk;
         }
 
-        // Clamp positions to GALAXY_RADIUS to avoid stars too far out
-        const distXZ = Math.sqrt(x * x + z * z);
-        if (distXZ > GALAXY_RADIUS) {
-            const scale = GALAXY_RADIUS / distXZ;
+        // === ADD GLOBAL FUZZINESS/NOISE ===
+        const noiseFactor = 0.02; // 2% of GALAXY_RADIUS as max noise
+        x += (Math.random() - 0.5) * 2 * GALAXY_RADIUS * noiseFactor;
+        y += (Math.random() - 0.5) * 2 * GALAXY_RADIUS * noiseFactor * 0.5; // Less Y noise
+        z += (Math.random() - 0.5) * 2 * GALAXY_RADIUS * noiseFactor;
+
+        // === CLAMPING (ensure stars stay within defined galaxy bounds) ===
+        // Clamp XZ to GALAXY_RADIUS (circular boundary)
+        const distSqXZ_clamp = x * x + z * z; 
+        if (distSqXZ_clamp > GALAXY_RADIUS * GALAXY_RADIUS) {
+            const scale = GALAXY_RADIUS / Math.sqrt(distSqXZ_clamp);
             x *= scale;
             z *= scale;
         }
-        // Clamp y for extreme outliers
-        const maxY = isBulgeStarThisIteration ? BULGE_RADIUS_Y * 1.1 : DISK_THICKNESS_Y * 1.5;
-        if (Math.abs(y) > maxY) {
-            y = Math.sign(y) * maxY * Math.random();
+
+        // Clamp Y based on star type and its generated primary radius
+        let maxYMagnitude_clamp; 
+        switch (starTypeGenerated) {
+            case 'bar':
+                maxYMagnitude_clamp = actualBarWidth * GALAXY_PARAMS.centralBarYScale * 1.3; 
+                break;
+            case 'bulge':
+                maxYMagnitude_clamp = actualBulgeRadius * GALAXY_PARAMS.bulgeYScale * 0.8; 
+                break;
+            case 'arm':
+                const normalizedEffRadForArmY = Math.min(1, Math.max(0, starPrimaryRadius - actualBarLength) / (GALAXY_RADIUS - actualBarLength));
+                const taperFactorForArmY = Math.max(0.15, 1.0 - normalizedEffRadForArmY * 0.85);
+                maxYMagnitude_clamp = actualArmWidth * taperFactorForArmY * GALAXY_PARAMS.diskYScaleForArms * 1.8; 
+                break;
+            case 'disk_general':
+            default:
+                // Recalculate taperFactorDisk for clamping, consistent with y-generation
+                const diskRadiusRatio_clamp = Math.max(0, Math.min(1, (starPrimaryRadius - actualBulgeRadius) / (GALAXY_RADIUS - actualBulgeRadius)));
+                const taperFactorDisk_clamp = Math.max(0.15, 1.0 - diskRadiusRatio_clamp * 0.85);
+                const baseThicknessAtInnerDisk_clamp = GALAXY_RADIUS * GALAXY_PARAMS.diskStarYScale;
+                maxYMagnitude_clamp = baseThicknessAtInnerDisk_clamp * taperFactorDisk_clamp * 1.5;
+                break;
         }
 
-        const position = new THREE.Vector3(x, y, z);
-        const color = new THREE.Color();
+        if (Math.abs(y) > maxYMagnitude_clamp) {
+            y = Math.sign(y) * maxYMagnitude_clamp * (0.7 + Math.random() * 0.3); 
+        }
         
-        // Color variation based on location
-        if (isBulgeStarThisIteration && position.length() < BULGE_RADIUS_XY * 0.6) { // Inner bulge
-            color.setHSL(Math.random() * 0.1 + 0.05, 0.7 + Math.random() * 0.2, 0.6 + Math.random() * 0.2); // More yellowish/orange
-        } else if (!isBulgeStarThisIteration && position.length() > SPIRAL_A * 1.2) { // Outer Arms
-            color.setHSL(Math.random() * 0.2 + 0.55, 0.8 + Math.random() * 0.2, 0.7 + Math.random() * 0.1); // More bluish/white, brighter
-        } else { // General / outer bulge / inner arms
-            color.setHSL(Math.random(), 0.7 + Math.random() * 0.3, 0.5 + Math.random() * 0.3); // Default random
+        // === COLOR LOGIC ===
+        const effectiveRadiusForColor = starPrimaryRadius; 
+        const mixedColor = colorInside.clone();
+        let lerpFactor;
+
+        if (starTypeGenerated === 'bulge' || (starTypeGenerated === 'bar' && effectiveRadiusForColor < actualBulgeRadius * 0.7)) {
+            lerpFactor = Math.min(effectiveRadiusForColor / (actualBulgeRadius * 0.8), 1.0) * 0.4; 
+        } else {
+            lerpFactor = Math.min(effectiveRadiusForColor / GALAXY_RADIUS, 1.0);
         }
+        mixedColor.lerp(colorOutside, lerpFactor);
 
+        // === STAR DATA ===
         const totalStarTextures = NUM_COMMON_STAR_TEXTURES + NUM_RARE_STAR_TEXTURES;
-        const probabilityCommon = 0.96; // 96% chance for common textures
-
+        const probabilityCommon = 0.96;
         let textureIndex;
         if (Math.random() < probabilityCommon) {
-            // Assign a common texture (0-7)
             textureIndex = Math.floor(Math.random() * NUM_COMMON_STAR_TEXTURES);
         } else {
-            // Assign a rare texture (8-11)
             textureIndex = NUM_COMMON_STAR_TEXTURES + Math.floor(Math.random() * NUM_RARE_STAR_TEXTURES);
         }
 
-        const baseSize = Math.random() * 1.5 + 0.5; // Base size for the star's data
+        let baseSize = Math.random() * 1.5 + 0.5; 
+        if (starTypeGenerated === 'bulge' || starTypeGenerated === 'bar') {
+            baseSize *= 1.2; 
+        } else if (starTypeGenerated === 'arm') {
+            const normalizedEffRadForArmSize = Math.min(1, Math.max(0, starPrimaryRadius - actualBarLength) / (GALAXY_RADIUS - actualBarLength));
+            baseSize *= (1.1 - normalizedEffRadForArmSize * 0.3); 
+        }
+        baseSize = Math.max(0.4, Math.min(baseSize, 2.5)); 
+
+
         stars.push({
             id,
             name: generateRandomName(),
-            position,
-            color,
-            size: baseSize, 
+            position: new THREE.Vector3(x, y, z),
+            color: mixedColor.clone(),
+            size: baseSize,
+            textureIndex,
             planets: generatePlanets(id),
-            isKeySystem: Math.random() < 0.01,
-            textureIndex: textureIndex, // Use the new weighted textureIndex
         });
 
-        // Size for the points material
-        sizes[i] = stars[stars.length - 1].isKeySystem ? (baseSize * 1.8) : baseSize * 0.9;
+        positions[i3 + 0] = x;
+        positions[i3 + 1] = y;
+        positions[i3 + 2] = z;
 
-        positions[i * 3] = x;
-        positions[i * 3 + 1] = y;
-        positions[i * 3 + 2] = z;
+        colors[i3 + 0] = mixedColor.r;
+        colors[i3 + 1] = mixedColor.g;
+        colors[i3 + 2] = mixedColor.b;
 
-        colors[i * 3] = color.r;
-        colors[i * 3 + 1] = color.g;
-        colors[i * 3 + 2] = color.b;
+        sizes[i] = baseSize;
     }
 
-    return { stars, positions, colors, sizes };
+    return {
+        stars,
+        positions,
+        colors,
+        sizes
+    };
 };
