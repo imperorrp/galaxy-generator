@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { StarData, PlanetData } from '../types/galaxy';
 import { NUM_COMMON_STAR_TEXTURES, NUM_RARE_STAR_TEXTURES } from '../config/galaxyConfig';
 
-const NUM_STARS = 500; // Reverted star count, implementing user requests for structure changes
+const NUM_STARS = 1000; // Reverted star count, implementing user requests for structure changes
 export const GALAXY_RADIUS = 1000;
 
 // Helper function to generate a random name (simple version)
@@ -55,11 +55,11 @@ const GALAXY_PARAMS = {
 
     bulgeSizeFactor: 0.28, // Increased for a wider bulge (28% of GALAXY_RADIUS)
     bulgeYScale: 0.6, // Bulge height is 60% of its radius, making it thicker
-    bulgeDensityPower: 2.0, // Power for Math.random() in bulge radius generation for denser core - Decreased for less dense core
+    bulgeDensityPower: 1.5, // Power for Math.random() in bulge radius generation. Lower values (<1) spread more, higher values (>1) concentrate more towards center. Adjusted for less dense core.
 
     centralBarLengthFactor: 0.25, // Bar length is 25% of GALAXY_RADIUS
     centralBarWidthFactor: 0.05,  // Bar width is 5% of GALAXY_RADIUS
-    centralBarYScale: 0.3, // Thickness of the bar
+    centralBarYScale: 0.8, // Thickness of the bar
 
     diskStarFraction: 0.30, // 30% of stars are general disk stars (not strictly in arms)
     diskStarYScale: 0.18, // General disk stars Y scale - now for inner edge of disk, will taper
@@ -69,6 +69,10 @@ const GALAXY_PARAMS = {
 };
 
 export const generateGalaxyData = (): GalaxyData => {
+    const MIN_STAR_DISTANCE = 25.0; // Minimum distance between stars
+    const MIN_STAR_DISTANCE_SQUARED = MIN_STAR_DISTANCE * MIN_STAR_DISTANCE;
+    const MAX_PLACEMENT_ATTEMPTS = 10; // Max attempts to find a valid position
+
     const stars: StarData[] = [];
     const positions = new Float32Array(NUM_STARS * 3);
     const colors = new Float32Array(NUM_STARS * 3);
@@ -85,12 +89,20 @@ export const generateGalaxyData = (): GalaxyData => {
     for (let i = 0; i < NUM_STARS; i++) {
         const id = `star-${i}`;
         const i3 = i * 3;
-        let x, y, z;
-        let starPrimaryRadius; // Represents pre-noise distance from galactic center, used for color and some structural logic
-        let starTypeGenerated; // To help with clamping and color logic: 'bar', 'bulge', 'arm', 'disk_general'
+        // Declare variables that will be set inside the placement attempt loop
+        let x: number = 0, y: number = 0, z: number = 0;
+        let starPrimaryRadius: number = 0;
+        let starTypeGenerated: 'bar' | 'bulge' | 'arm' | 'disk_general' = 'disk_general'; // Default, will be overwritten
 
-        // Determine star type and generate initial position
-        const typeRoll = Math.random();
+        let positionIsValid = false;
+        let attempts = 0;
+
+        while (!positionIsValid && attempts < MAX_PLACEMENT_ATTEMPTS) {
+            attempts++;
+
+            // Determine star type and generate initial position
+            // This entire block (position generation + clamping) is now inside the while loop
+            const typeRoll = Math.random();
 
         if (typeRoll < 0.15) { // 15% chance for bar
             starTypeGenerated = 'bar';
@@ -225,6 +237,26 @@ export const generateGalaxyData = (): GalaxyData => {
         if (Math.abs(y) > maxYMagnitude_clamp) {
             y = Math.sign(y) * maxYMagnitude_clamp * (0.7 + Math.random() * 0.3); 
         }
+
+            // Check distance to other already placed stars
+            positionIsValid = true; // Assume valid for this attempt
+            for (let k = 0; k < stars.length; k++) {
+                // Using the current x, y, z for the star being placed
+                const dx_check = x - stars[k].position.x;
+                const dy_check = y - stars[k].position.y;
+                const dz_check = z - stars[k].position.z;
+                const distSq = dx_check * dx_check + dy_check * dy_check + dz_check * dz_check;
+                if (distSq < MIN_STAR_DISTANCE_SQUARED) {
+                    positionIsValid = false;
+                    break; // Too close to star k, try a new position
+                }
+            }
+
+            if (!positionIsValid && attempts >= MAX_PLACEMENT_ATTEMPTS) {
+                // Optional: console.warn(`Star ${id} (type: ${starTypeGenerated}) placed despite proximity after ${MAX_PLACEMENT_ATTEMPTS} attempts.`);
+                positionIsValid = true; // Force accept if max attempts reached
+            }
+        } // End of while (!positionIsValid && attempts < MAX_PLACEMENT_ATTEMPTS)
         
         // === COLOR LOGIC ===
         const effectiveRadiusForColor = starPrimaryRadius; 
