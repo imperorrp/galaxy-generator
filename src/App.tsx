@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import LodControls from './components/ui/LodControls'; // Import LodControls
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import GalaxyView from './components/scene/GalaxyView';
@@ -15,6 +16,18 @@ function App() {
   const controlsRef = useRef<any>(null); // Using any for OrbitControls type from drei
   const cameraRef = useRef<THREE.PerspectiveCamera>(null!);
 
+  // LOD State
+  const [isLodManual, setIsLodManual] = useState(false);
+  const [manualLodLevel, setManualLodLevel] = useState(0); // Default to Far
+  const [effectiveLodLevel, setEffectiveLodLevel] = useState(0); // Actual LOD level used by GalaxyView
+  
+  // Optimized Mode State
+  const [userOptimizedModeSetting, setUserOptimizedModeSetting] = useState(false); // User's preference via toggle
+  const [actualOptimizedMode, setActualOptimizedMode] = useState(false); // Actual mode reported by useCameraDynamics
+  
+  // Performance Metrics State (enterThreshold removed)
+  const [performanceMetrics, setPerformanceMetrics] = useState({ frameTime: 0, angularSpeed: 0 });
+
   const handleStarSelect = (starData: StarData) => {
     setSelectedStarData(starData);
     setCurrentView('system');
@@ -23,6 +36,33 @@ function App() {
   const handleBackToGalaxy = () => {
     setSelectedStarData(null);
     setCurrentView('galaxy');
+  };
+
+  // LOD Control Handlers
+  const handleToggleLodMode = (isManual: boolean) => {
+    setIsLodManual(isManual);
+  };
+
+  const handleSetManualLodLevel = (level: number) => {
+    setManualLodLevel(level);
+  };
+
+  const handleEffectiveLodChange = (level: number) => {
+    setEffectiveLodLevel(level);
+  };
+
+  // Optimized Mode Handlers
+  const handleToggleUserOptimizedModeSetting = () => {
+    setUserOptimizedModeSetting(prev => !prev);
+  };
+
+  const handleActualOptimizedModeChange = useCallback((isActive: boolean) => {
+    setActualOptimizedMode(isActive);
+  }, []); // useCallback to stabilize the function reference
+
+  // Performance Metrics Handler (signature updated)
+  const handlePerformanceMetricsChange = (metrics: { frameTime: number; angularSpeed: number; }) => {
+    setPerformanceMetrics(metrics);
   };
 
   useEffect(() => {
@@ -53,7 +93,17 @@ function App() {
         <ambientLight intensity={0.7} />
         <pointLight position={[100, 100, 100]} intensity={1.5} />
         
-        {currentView === 'galaxy' && <GalaxyView onStarSelect={handleStarSelect} />}
+        {currentView === 'galaxy' && 
+          <GalaxyView 
+            onStarSelect={handleStarSelect} 
+            isLodManual={isLodManual} 
+            manualLodOverride={manualLodLevel} 
+            onLodLevelChange={handleEffectiveLodChange}
+            onOptimizedModeChange={handleActualOptimizedModeChange} // Renamed and new handler
+            onPerformanceMetricsChange={handlePerformanceMetricsChange} // Updated handler signature
+            userRequestedOptimizedMode={userOptimizedModeSetting} // New prop for user's preference
+          />
+        }
         {currentView === 'system' && selectedStarData && (
           <SystemView starData={selectedStarData} onBackToGalaxy={handleBackToGalaxy} />
         )}
@@ -63,6 +113,16 @@ function App() {
       {currentView === 'system' && selectedStarData && (
         <SystemInfoDisplay starData={selectedStarData} onBackToGalaxy={handleBackToGalaxy} />
       )}
+      <LodControls
+        isLodManual={isLodManual}
+        manualLodLevel={manualLodLevel}
+        currentAutoLodLevel={effectiveLodLevel}
+        onToggleLodMode={handleToggleLodMode}
+        onSetManualLodLevel={handleSetManualLodLevel}
+        isOptimizedModeActive={userOptimizedModeSetting} // Changed from actualOptimizedMode to userOptimizedModeSetting
+        onToggleOptimizedMode={handleToggleUserOptimizedModeSetting}
+        performanceMetrics={performanceMetrics}
+      />
     </div>
   );
 }

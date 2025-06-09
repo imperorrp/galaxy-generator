@@ -86,10 +86,16 @@
     - Add nebulae.
     - Refine star appearance (general, beyond spiral structure).
     - **[INFO]** Temporarily removed/deferred PNG dependencies for galaxy visuals (nebulae) to simplify initial implementation. Will revisit texture-based nebulae later.
+    - **[REVIEWED]** Galaxy generation and visual appearance enhancements (spiral structure, star textures) are reflected in the codebase and this progress document.
+    - **[TODO]** Add loosely scattered stars beyond the main galaxy disk.
+    - **[TODO]** Implement globular clusters within and around the galaxy.
+    - **[DONE]** Implement Dynamic Level of Detail (LoD) for star rendering.
+    - **[DONE]** Implement Optimized Camera Mode (replaces High-Speed Rotation Mode, now externally controlled and monitors performance degradation) for performance adjustments.
 2. Define Important Systems (create data for key systems).
 3. Implement Visual Distinction for Important Systems.
 4. Implement Planet Texture Variety.
 5. Improve UI Styling and Polish.
+    - **[DONE]** Implement UI controls for toggling LoD modes and managing optimized camera mode (e.g., allowing user to request optimized state).
 
 ## Phase X: System View Enhancements (User Request)
 

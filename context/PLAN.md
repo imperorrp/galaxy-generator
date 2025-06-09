@@ -100,10 +100,15 @@ This document outlines the step-by-step development plan for the Galactic Conque
 ## Phase 3: Enhancements & Important Systems (2-4 days)
 
 1.  **[TASK]** Galaxy Visual Polish:
-    *   Add nebula textures using `PlaneGeometry` and transparent textures, or more `<points>` clouds.
-    *   Refine star particle appearance (e.g., using a sprite texture for `pointsMaterial.map`, `AdditiveBlending`).
-    *   **[NEW]** Implement Star Texture Variety: Load multiple star particle textures (e.g., 2-3 variations) and randomly assign them to stars for a more diverse visual appearance in the galaxy view. This might involve updating `useGalaxyGenerator.js` to assign a texture index or modifying `GalaxyView.jsx` to handle multiple texture groups.
+    *   **[DONE]** Implement realistic spiral galaxy structure (central bulge, spiral arms, skewed radial distribution, logarithmic math, refined scatter, densified bulge, gradient coloring based on `new-galaxy-generation-ideas`). (Covered by previous work on `galaxyService.ts`)
+    *   **[DONE]** Implement Star Texture Variety: Load multiple star particle textures (e.g., 2-3 variations) and randomly assign them to stars for a more diverse visual appearance in the galaxy view. (Implemented, requires user to add textures)
+    *   **[TODO]** Add nebula textures using `PlaneGeometry` and transparent textures, or more `<points>` clouds. (Deferred as per `CURRENT-PROGRESS-STATUS.md`)
+    *   **[TODO]** Refine star particle appearance (general, beyond spiral structure).
+    *   **[TODO]** Add loosely scattered stars beyond the main galaxy disk.
+    *   **[TODO]** Implement globular clusters within and around the galaxy.
     *   Consider a skybox (CubeTexture) for a richer background.
+    *   **[TASK]** Implement Dynamic Level of Detail (LoD) for star rendering (e.g., points for distant, instanced meshes for close).
+    *   **[TASK]** Implement Optimized Camera Mode (replaces High-Speed Rotation Mode, now externally controlled and monitors performance degradation) for performance adjustments.
 2.  **[TASK]** Define Important Systems:
     *   Create `src/data/predefinedSystems.js` with data for a few key systems (name, specific planet configurations if desired, `isKeySystem: true`).
     *   Merge this data with procedurally generated stars in `useGalaxyGenerator.js` or apply it post-generation.
@@ -116,6 +121,7 @@ This document outlines the step-by-step development plan for the Galactic Conque
 5.  **[TASK]** UI Styling and Polish:
     *   Improve the CSS for `InfoPanel.jsx` and `SystemInfoDisplay.jsx`.
     *   Ensure consistent look and feel.
+    *   **[TASK]** Implement UI controls for toggling LoD modes and managing optimized camera mode (e.g., allowing user to request optimized state).
 
 **Deliverable:** A more visually appealing galaxy with distinct key systems. Planets have varied textures. UI is more polished.
 

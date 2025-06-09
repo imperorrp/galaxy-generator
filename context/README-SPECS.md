@@ -15,6 +15,8 @@ The application will be built using React, Three.js, and React Three Fiber (R3F)
     - Star selection: Clicking a star highlights it and displays basic information.
     - Hover effect: Displaying star name on hover.
     - Transition to System View upon star selection.
+    - Dynamic Level of Detail (LoD) for star rendering to optimize performance.
+    - Optimized Camera Mode (replaces High-Speed Rotation Mode, now externally controlled and monitors performance degradation) for performance adjustments during camera movement or when performance issues are detected.
 
 ### 2.2. System View (MVP)
     - Displays a selected star and its procedurally generated planets.
@@ -43,6 +45,8 @@ The application will be built using React, Three.js, and React Three Fiber (R3F)
     - Clean, intuitive, and responsive user interface.
     - Information panels for selected objects (stars, planets, fleets).
     - Controls for game actions.
+    - UI controls for toggling Level of Detail (LoD) modes.
+    - UI controls for managing optimized camera mode (e.g., allowing user to request optimized state).
 
 ## 3. Technical Specifications
 
@@ -64,8 +68,10 @@ The application will be built using React, Three.js, and React Three Fiber (R3F)
         - Procedural algorithm to generate a realistic spiral galaxy structure, featuring a dense central bulge and distinct spiral arms, using techniques inspired by `new-galaxy-generation-ideas` for enhanced realism (e.g., skewed radial distribution for overall density, logarithmic spiral math for arm placement, specific scatter algorithms for arm thickness and bulge densification, and gradient-based coloring from galactic center to edge).
         - Star attributes: Position (Vector3), color, size (optional), unique ID, name, metadata (faction, planets).
         - Implemented using `useMemo` in React to generate data once.
-        - Stars primarily rendered via a single `<points>` R3F component for performance.
+        - Stars rendered using dynamic Level of Detail (LoD): a single `<points>` R3F component for distant views and individual instanced meshes for closer, more detailed views to balance performance and visual fidelity.
         - **Star Texture Variety:** Multiple star particle textures (e.g., 2-3 variations) will be loaded and randomly assigned to stars to enhance visual diversity in the galaxy view.
+        - **Loosely Scattered Stars:** Additional stars will be generated beyond the main galactic disk to create a more natural, less defined edge.
+        - **Globular Clusters:** Small, dense clusters of stars will be procedurally generated and positioned both within the galactic halo and potentially embedded closer to the disk.
     - **Star System Generation:**
         - Star: `SphereGeometry`, emissive or basic material. Point light source.
         - Planets: `SphereGeometry`, `MeshStandardMaterial` with procedural or loaded textures.

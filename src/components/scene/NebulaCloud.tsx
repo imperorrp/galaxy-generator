@@ -1,38 +1,66 @@
 import * as THREE from 'three';
 import { useTexture } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
-import { useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber'; // Added useThree
+import { useRef, useEffect } from 'react'; // Added useEffect
 
 interface NebulaCloudProps {
   textureUrl: string;
   position?: THREE.Vector3 | [number, number, number];
   scale?: THREE.Vector3 | [number, number, number] | number;
-  rotation?: THREE.Euler | [number, number, number];
   opacity?: number;
-  spinSpeed?: number; // Optional speed for slow rotation
+  isRotating?: boolean; // Added isRotating prop
+  isVisible?: boolean; // New prop for conditional rendering
 }
 
 const NebulaCloud: React.FC<NebulaCloudProps> = ({
   textureUrl,
   position = [0, 0, 0],
   scale = 1,
-  rotation = [0, 0, 0],
+  // rotation = [0, 0, 0], // Initial rotation is overridden by lookAt
   opacity = 0.5,
-  spinSpeed = 0.005
+  isRotating = false, // Default value for isRotating
+  isVisible = true, // Default to true
 }) => {
+  const { gl } = useThree(); // Get renderer for maxAnisotropy
   const texture = useTexture(textureUrl);
-  const meshRef = useRef<THREE.Mesh>(null!);
+  const meshRef = useRef<THREE.Mesh>(null!); 
 
-  // Optional: Add a slow spin to the nebula
-  useFrame((_state, delta) => {
-    if (meshRef.current && spinSpeed) {
-      meshRef.current.rotation.y += delta * spinSpeed;
-      // meshRef.current.rotation.x += delta * spinSpeed * 0.5; // Example for more complex rotation
+  useEffect(() => {
+    if (meshRef.current) {
+      meshRef.current.visible = isVisible;
+    }
+  }, [isVisible]);
+
+  useEffect(() => {
+    if (!gl || !texture || !isVisible) return; // Also check isVisible
+
+    const maxAnisotropy = gl.capabilities.getMaxAnisotropy();
+
+    if (isRotating) {
+      texture.anisotropy = 1;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+    } else {
+      texture.anisotropy = maxAnisotropy;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+    }
+    texture.needsUpdate = true;
+  }, [isRotating, texture, gl, isVisible]); // Added isVisible to dependency array
+
+  useFrame((state) => {
+    if (meshRef.current && isVisible) { // Only update if visible
+      // Make the nebula face the camera
+      meshRef.current.lookAt(state.camera.position);
     }
   });
 
+  // Return null if not visible to prevent rendering, alternative to mesh.visible = false for full unmount if preferred
+  // However, for this case, toggling visibility is likely better to avoid re-mount costs.
+  // if (!isVisible) return null; 
+
   return (
-    <mesh ref={meshRef} position={position} scale={scale} rotation={rotation}>
+    <mesh ref={meshRef} position={position} scale={scale} visible={isVisible} /* rotation prop removed */>
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial
         map={texture}
