@@ -24,9 +24,9 @@
 
 ## Phase 1: Galaxy View - Visualization
 
-- **[DONE]** Implement galaxy data generation logic in `src/services/galaxyService.ts`:
+- **[DONE]** Implement galaxy data generation logic (formerly in `src/services/galaxyService.ts`, now refactored into `src/services/galaxyGenerationModules/`):
     - Created `src/types/galaxy.ts` for `StarData` and `PlanetData`.
-    - Implemented `generateGalaxyData` in `galaxyService.ts` to produce star positions, colors, and metadata.
+    - Implemented `generateGalaxyData` (originally in `galaxyService.ts`, now part of `src/services/galaxyGenerationModules/`) to produce star positions, colors, and metadata.
 - **[DONE]** Create `GalaxyView.tsx` component:
     - Uses `generateGalaxyData`.
     - Renders stars using `<points>` and `PointMaterial`.
@@ -89,8 +89,22 @@
     - **[REVIEWED]** Galaxy generation and visual appearance enhancements (spiral structure, star textures) are reflected in the codebase and this progress document.
     - **[TODO]** Add loosely scattered stars beyond the main galaxy disk.
     - **[TODO]** Implement globular clusters within and around the galaxy.
-    - **[DONE]** Implement Dynamic Level of Detail (LoD) for star rendering.
+    - **[DONE]** Implement Dynamic Level of Detail (LoD) for star rendering:
+        - The `useGalaxyLOD` hook manages automatic LOD switching for stars.
+        - An Octree data structure (`PointOctree.ts`) is built using all star positions to efficiently find the star closest to the camera.
+        - The distance to this nearest star determines the LOD level (0: Far, 1: Mid, 2: Near, 3: Very Near) based on predefined thresholds.
+        - This LOD calculation, including the nearest star search via the Octree, is performed every 10 frames (`LOD_CALCULATION_INTERVAL_FRAMES`) to optimize performance.
+        - If the Octree is unavailable (e.g., no stars provided) or no nearest star is found, the distance to the galaxy's origin is used as a fallback for LOD determination.
+        - The system also supports manual LOD override capabilities.
     - **[DONE]** Implement Optimized Camera Mode (replaces High-Speed Rotation Mode, now externally controlled and monitors performance degradation) for performance adjustments.
+    - **[INFO]** Refactored galaxy generation (formerly `galaxyService.ts`, now `src/services/galaxyGenerationModules/`) and LOD logic (`useGalaxyLOD.ts`) for improved modularity and clarity. The `galaxyGenerationModules` directory now contains specific modules for:
+        - `globularClusterStarGenerator.ts`: Handles star generation for globular clusters.
+        - `haloStarGenerator.ts`: Manages star generation in the galactic halo.
+        - `mainGalaxyStarGenerator.ts`: Generates stars for the main galactic structures (bulge, bar, arms, disk).
+        - `nameGenerator.ts`: Provides random name generation.
+        - `outerDiskStarGenerator.ts`: Creates stars in the outer disk regions.
+        - `planetGenerator.ts`: Generates planets for individual star systems.
+    This refactoring also involved `starDataService.ts` (though this file seems to have been removed or was conceptual, the functionality is now integrated within the modules or `generateGalaxyData.ts`) for detailed star properties and `generationUtils.ts` (similarly, this seems to have been integrated or was conceptual) for common generation helper functions.
 2. Define Important Systems (create data for key systems).
 3. Implement Visual Distinction for Important Systems.
 4. Implement Planet Texture Variety.
@@ -100,7 +114,7 @@
 ## Phase X: System View Enhancements (User Request)
 
 - **[DONE]** Increased average number of planets per star:
-    - Modified `generatePlanets` in `src/services/galaxyService.ts` to generate more planets on average.
+    - Modified `generatePlanets` (within the refactored modules at `src/services/galaxyGenerationModules/`, formerly in `src/services/galaxyService.ts`) to generate more planets on average.
 - **[DONE]** Increased visibility of celestial bodies in System View:
     - Increased star size in `src/components/scene/SystemView.tsx`.
     - Increased planet size in `src/components/scene/PlanetMesh.tsx`.

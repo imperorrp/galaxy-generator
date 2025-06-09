@@ -15,7 +15,7 @@ The application will be built using React, Three.js, and React Three Fiber (R3F)
     - Star selection: Clicking a star highlights it and displays basic information.
     - Hover effect: Displaying star name on hover.
     - Transition to System View upon star selection.
-    - Dynamic Level of Detail (LoD) for star rendering to optimize performance.
+    - Dynamic Level of Detail (LoD) for star rendering to optimize performance, managed by the `useGalaxyLOD` hook. This system uses an Octree (`src/utils/PointOctree.ts`) to find the nearest star to the camera, calculating LOD every 10 frames. If no star is found, distance to galaxy origin is used as a fallback.
     - Optimized Camera Mode (replaces High-Speed Rotation Mode, now externally controlled and monitors performance degradation) for performance adjustments during camera movement or when performance issues are detected.
 
 ### 2.2. System View (MVP)
@@ -65,10 +65,18 @@ The application will be built using React, Three.js, and React Three Fiber (R3F)
 
 ### 3.2. 3D Scene Details
     - **Galaxy Generation:**
-        - Procedural algorithm to generate a realistic spiral galaxy structure, featuring a dense central bulge and distinct spiral arms, using techniques inspired by `new-galaxy-generation-ideas` for enhanced realism (e.g., skewed radial distribution for overall density, logarithmic spiral math for arm placement, specific scatter algorithms for arm thickness and bulge densification, and gradient-based coloring from galactic center to edge).
+        - Procedural galaxy generation is handled by a collection of specialized modules located in `src/services/galaxyGenerationModules/`. This modular system replaces the previous monolithic `galaxyService.ts`. Each module is responsible for a specific aspect of galaxy creation:
+            - `globularClusterStarGenerator.ts`: Generates stars within globular clusters, defining their positions and characteristics.
+            - `haloStarGenerator.ts`: Creates stars in the galactic halo, managing their distribution and properties.
+            - `mainGalaxyStarGenerator.ts`: The primary module for generating stars in the main galactic structures (bulge, central bar, spiral arms, disk), employing complex algorithms for realistic placement and density.
+            - `nameGenerator.ts`: A utility for generating random, plausible-sounding names for celestial objects.
+            - `outerDiskStarGenerator.ts`: Populates the sparser, outer regions of the galactic disk with stars.
+            - `planetGenerator.ts`: Manages the procedural generation of planets for individual star systems, including their number, types, and orbital parameters.
+        - The overall generation process, likely orchestrated by a higher-level function (e.g., `generateGalaxyData.ts` which is not a module itself but uses them), integrates these modules to produce a comprehensive galaxy model. Functionality previously conceptualized for `starDataService.ts` (detailed star properties) and `generationUtils.ts` (common utilities) is now largely incorporated within these specific modules or the orchestrating logic, ensuring modularity and clear responsibilities. The generation process uses techniques inspired by `new-galaxy-generation-ideas` for realism (e.g., skewed radial distribution, logarithmic spirals, densified bulge, gradient coloring).
+        - General utilities, such as the Octree implementation for spatial indexing (`PointOctree.ts`), are found in `src/utils/`.
         - Star attributes: Position (Vector3), color, size (optional), unique ID, name, metadata (faction, planets).
-        - Implemented using `useMemo` in React to generate data once.
-        - Stars rendered using dynamic Level of Detail (LoD): a single `<points>` R3F component for distant views and individual instanced meshes for closer, more detailed views to balance performance and visual fidelity.
+        - Galaxy data is typically generated once (e.g., using `useMemo` in a component that consumes the service).
+        - Stars rendered using dynamic Level of Detail (LoD): The `useGalaxyLOD` hook determines the LOD level based on the camera's proximity to the nearest star (found via an Octree of all star positions, updated every 10 frames) or distance to origin as a fallback. This LOD level influences star sizes and potentially other visual aspects. Stars are primarily rendered using a single `<points>` R3F component.
         - **Star Texture Variety:** Multiple star particle textures (e.g., 2-3 variations) will be loaded and randomly assigned to stars to enhance visual diversity in the galaxy view.
         - **Loosely Scattered Stars:** Additional stars will be generated beyond the main galactic disk to create a more natural, less defined edge.
         - **Globular Clusters:** Small, dense clusters of stars will be procedurally generated and positioned both within the galactic halo and potentially embedded closer to the disk.
@@ -168,13 +176,15 @@ The application will be built using React, Three.js, and React Three Fiber (R3F)
     │   │   └── AppContext.jsx    # e.g., for view state, selected objects
     │   │   └── GameStateContext.jsx # Future, for game logic state
     │   ├── hooks/                # Custom React hooks
-    │   │   └── useGalaxyGenerator.js # Logic for star data generation
-    │   │   └── useStarData.js      # Hook to provide star data
-    │   ├── services/             # Business logic, API calls (if any)
-    │   │   └── galaxyService.js  # Functions related to galaxy data manipulation
+    │   │   └── useGalaxyLOD.ts   # Hook for managing Level of Detail (uses Octree for nearest star detection)
+    │   │   └── useCameraDynamics.ts # Hook for camera movement analysis
+    │   │   └── useTextureAnisotropy.ts # Hook for texture optimization
+    │   ├── services/             # Business logic, data generation services
+    │   │   ├── galaxyGenerationModules/  # Contains specialized modules for different aspects of galaxy generation (e.g., mainGalaxyStarGenerator.ts, planetGenerator.ts, etc.)
     │   ├── data/                 # Static data, predefined systems (if any)
     │   │   └── predefinedSystems.js
     │   └── utils/                # Utility functions
+    │       ├── PointOctree.ts    # Octree implementation for spatial indexing (used by useGalaxyLOD)
     │       └── threeUtils.js     # Three.js specific helpers if needed
     ├── vite.config.js
     ├── package.json

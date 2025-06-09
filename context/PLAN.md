@@ -28,9 +28,16 @@ This document outlines the step-by-step development plan for the Galactic Conque
 ## Phase 1: Galaxy View - Visualization (3-5 days)
 
 1.  **[TASK]** Galaxy Data Generation Logic:
-    *   Create `src/hooks/useGalaxyGenerator.js` or `src/services/galaxyService.js`.
-    *   Implement procedural algorithm to generate a realistic spiral galaxy structure, featuring a dense central bulge and distinct spiral arms. Star positions, colors, and basic metadata (ID, name, position Vector3, color object) will be generated using techniques inspired by `new-galaxy-generation-ideas` for enhanced realism (e.g., skewed radial distribution, logarithmic spirals, densified bulge, gradient coloring).
-    *   Function should return an array of `StarData` objects and pre-calculated `Float32Array`s for positions and colors for `bufferGeometry`.
+    *   Galaxy data generation is now handled by a set of specialized modules within the `src/services/galaxyGenerationModules/` directory. This modular approach replaces the formerly monolithic `galaxyService.ts`. The key modules and their responsibilities are:
+        - `globularClusterStarGenerator.ts`: Manages the procedural generation of stars within globular clusters, including their positioning and characteristics.
+        - `haloStarGenerator.ts`: Responsible for creating stars in the galactic halo, defining their distribution and properties distinct from the main galaxy body.
+        - `mainGalaxyStarGenerator.ts`: The core module for generating stars within the primary galactic structures, such as the central bulge, spiral arms, and the galactic disk. It implements complex algorithms for realistic star placement and density variations.
+        - `nameGenerator.ts`: A utility module providing functions to generate random, plausible-sounding names for stars and other celestial objects.
+        - `outerDiskStarGenerator.ts`: Focuses on populating the sparser, outer regions of the galactic disk with stars.
+        - `planetGenerator.ts`: Handles the procedural generation of planets for individual star systems, determining the number, types, and orbital characteristics of planets around a given star.
+    *   The functionality previously envisioned for `starDataService.ts` (detailed star properties) and `generationUtils.ts` (common utilities) has been largely integrated into these specific modules or the main `generateGalaxyData.ts` orchestrator, ensuring that each module is self-contained or relies on clearly defined inputs.
+    *   The core generation process, orchestrated by `generateGalaxyData.ts` (which utilizes these modules), produces star positions, colors, sizes, and metadata (ID, name, position Vector3, color object, texture index, planets) using techniques inspired by `new-galaxy-generation-ideas` for enhanced realism.
+    *   This results in an array of `StarData` objects and pre-calculated `Float32Array`s for positions, colors, and sizes, optimized for use with `bufferGeometry` in R3F.
 2.  **[TASK]** `GalaxyView.jsx` Component:
     *   Use the galaxy generation logic (e.g., via `useMemo` to run once).
     *   Render stars using a single `<points>` R3F component.
@@ -100,14 +107,14 @@ This document outlines the step-by-step development plan for the Galactic Conque
 ## Phase 3: Enhancements & Important Systems (2-4 days)
 
 1.  **[TASK]** Galaxy Visual Polish:
-    *   **[DONE]** Implement realistic spiral galaxy structure (central bulge, spiral arms, skewed radial distribution, logarithmic math, refined scatter, densified bulge, gradient coloring based on `new-galaxy-generation-ideas`). (Covered by previous work on `galaxyService.ts`)
+    *   **[DONE]** Implement realistic spiral galaxy structure (central bulge, spiral arms, skewed radial distribution, logarithmic math, refined scatter, densified bulge, gradient coloring based on `new-galaxy-generation-ideas`). (Covered by previous work, now refactored into `src/services/galaxyGenerationModules/` from `galaxyService.ts`)
     *   **[DONE]** Implement Star Texture Variety: Load multiple star particle textures (e.g., 2-3 variations) and randomly assign them to stars for a more diverse visual appearance in the galaxy view. (Implemented, requires user to add textures)
     *   **[TODO]** Add nebula textures using `PlaneGeometry` and transparent textures, or more `<points>` clouds. (Deferred as per `CURRENT-PROGRESS-STATUS.md`)
     *   **[TODO]** Refine star particle appearance (general, beyond spiral structure).
     *   **[TODO]** Add loosely scattered stars beyond the main galaxy disk.
     *   **[TODO]** Implement globular clusters within and around the galaxy.
     *   Consider a skybox (CubeTexture) for a richer background.
-    *   **[TASK]** Implement Dynamic Level of Detail (LoD) for star rendering (e.g., points for distant, instanced meshes for close).
+    *   **[TASK]** Implement Dynamic Level of Detail (LoD) for star rendering: The `useGalaxyLOD` hook manages automatic LOD switching. An Octree (`PointOctree.ts`) is built from all star positions to find the nearest star to the camera. The distance to this star determines the LOD level (0-3). This calculation occurs every 10 frames. If no star is found or the Octree is unavailable, distance to the galaxy origin is used as a fallback. The system also supports manual LOD overrides.
     *   **[TASK]** Implement Optimized Camera Mode (replaces High-Speed Rotation Mode, now externally controlled and monitors performance degradation) for performance adjustments.
 2.  **[TASK]** Define Important Systems:
     *   Create `src/data/predefinedSystems.js` with data for a few key systems (name, specific planet configurations if desired, `isKeySystem: true`).

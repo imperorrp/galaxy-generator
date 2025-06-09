@@ -31,12 +31,12 @@ This document provides a summary of the files in the `galactic-conquest-r3f` pro
     - `handleStarClick`: Calls `onStarSelect` prop with clicked star data.
 - **Hooks**: `useMemo` (for `galaxyData`, `starGroups`), `useRef`, `useEffect`, `useState` (for `hoveredStar`, `selectedStar`), `useCameraDynamics`, `useGalaxyLOD`, `useTextureAnisotropy`, `useThree`, `useTexture`.
 - **Key Features**: 
-    - Generates galaxy data using `generateGalaxyData` service.
+    - Generates galaxy data using `generateGalaxyData` (which utilizes modules from `src/services/galaxyGenerationModules/`).
     - Renders stars using the `StarPoints` component.
     - Renders nebulae using the `NebulaRenderer` component.
     - Uses `DreiStars` for distant background stars.
     - Displays interactive HTML tooltips for hovered stars.
-    - Integrates LOD and high-speed mode detection for performance optimization.
+    - Integrates LOD (via `useGalaxyLOD` hook) and optimized camera mode (via `useCameraDynamics` hook) detection for performance optimization.
 
 ## `src/components/scene/NebulaCloud.tsx`
 - **Purpose**: Renders a single procedurally generated nebula cloud as a textured plane that always faces the camera.
@@ -166,16 +166,19 @@ This document provides a summary of the files in the `galactic-conquest-r3f` pro
     - Calculates both raw and smoothed angular speed of the camera.
 
 ## `src/hooks/useGalaxyLOD.ts`
-- **Purpose**: A custom React hook to manage the Level of Detail (LOD) for the galaxy view. It determines the appropriate LOD level based on camera distance to the origin or a manual override.
+- **Purpose**: A custom React hook responsible for determining the appropriate Level of Detail (LOD) for the galaxy view. It manages automatic LOD switching based on camera proximity to the nearest star and supports manual overrides.
 - **Exports**:
     - `useGalaxyLOD`: The hook function.
-- **Returns**: An object containing `lodLevel` (the calculated dynamic LOD level, 0-3) and `lodLevelChecked` (the LOD level to be used, clamped to be a valid index for `STAR_SIZE_LOD_CONFIG`).
-- **Props**: `manualLodOverride` (optional number for manual LOD), `isLodManual` (boolean indicating if manual LOD is active), `onLodLevelChange` (optional callback for LOD level changes).
+- **Returns**: An object containing `lodLevel` (the calculated dynamic LOD level, e.g., 0-3) and `lodLevelChecked` (the LOD level, validated and clamped for safe use with configuration arrays like star sizes).
+- **Props**: `manualLodOverride` (optional number for manual LOD selection), `isLodManual` (boolean indicating if manual LOD mode is active), `onLodLevelChange` (optional callback invoked when the LOD level changes), `allStars` (array of `StarData` used to build the Octree).
 - **Key Features**:
-    - Calculates LOD based on `camera.position.length()` and thresholds from `LOD_THRESHOLDS_CONFIG`.
-    - Allows manual LOD override.
-    - Clamps the final LOD level to ensure it's a valid index for `STAR_SIZE_LOD_CONFIG`.
-    - Reports LOD changes via the `onLodLevelChange` callback.
+    - Builds an Octree data structure (`PointOctree.ts` from `src/utils/`) using all star positions to efficiently find the star closest to the camera.
+    - The distance to this nearest star determines the LOD level (0: Far, 1: Mid, 2: Near, 3: Very Near) based on predefined thresholds in `LOD_THRESHOLDS_CONFIG`.
+    - This LOD calculation, including the nearest star search via the Octree, is performed every 10 frames (`LOD_CALCULATION_INTERVAL_FRAMES` from `galaxyConfig.ts`) to optimize performance.
+    - If the Octree is unavailable (e.g., no stars provided) or no nearest star is found, the distance to the galaxy's origin (0,0,0) is used as a fallback for LOD determination.
+    - Supports manual LOD override, allowing users to fix the detail level.
+    - Ensures the output LOD level is always a valid index for related configurations (e.g., `STAR_SIZE_LOD_CONFIG`).
+    - Communicates LOD level changes to parent components via the `onLodLevelChange` callback.
 
 ## `src/hooks/useTextureAnisotropy.ts`
 - **Purpose**: A custom React hook to dynamically adjust texture anisotropy and filtering settings for an array of textures. This is used to improve performance during camera movement and visual quality when static.
@@ -199,28 +202,40 @@ This document provides a summary of the files in the `galactic-conquest-r3f` pro
     - Renders the `<App />` component into the DOM element with `id='root'`.
     - Wraps `<App />` in `<React.StrictMode>` for development checks.
 
-## `src/services/galaxyService.ts`
-- **Purpose**: Contains the core logic for procedurally generating the galaxy, including all its stars and their initial properties (like planets).
-- **Exports**:
-    - `generateGalaxyData()`: The main function that returns an object containing arrays of `StarData`, and Float32Arrays for positions, colors, and sizes.
-    - `GalaxyData` (interface): Defines the structure of the returned galaxy data.
-- **Functions**:
-    - `generateRandomName()`: A helper function to create plausible random names for stars.
-    - `generatePlanets()`: A helper function to generate a random set of planets for a given star, based on `planetConfig.ts`.
-    - `generateGalaxyData()`: This is the main procedural generation algorithm. It creates stars based on `NUM_STARS` and distributes them according to `GALAXY_PARAMS` from `galaxyConfig.ts` into structures like:
-        - Central Bar
-        - Bulge
-        - Spiral Arms (with sub-arms and tapering)
-        - General Disk
-        - Halo
-        - Globular Clusters
-        It assigns positions, colors (based on distance from galactic center, interpolating between `colorInHex` and `colorOutHex`), sizes, a random texture index, and calls `generatePlanets()` for each star. It also attempts to ensure a minimum distance between stars.
+## `src/services/galaxyGenerationModules/`
+- **Purpose**: This directory contains a set of specialized modules, each responsible for a specific aspect of the procedural generation of the galaxy (e.g., star types, names, planet generation). These modules are utilized by `galaxyService.ts` to contribute to the overall galaxy model.
+- **Key Modules and Responsibilities**:
+    - `globularClusterStarGenerator.ts`: Manages the procedural generation of stars within globular clusters, including their positioning and characteristics.
+    - `haloStarGenerator.ts`: Responsible for creating stars in the galactic halo, defining their distribution and properties distinct from the main galaxy body.
+    - `mainGalaxyStarGenerator.ts`: The core module for generating stars within the primary galactic structures, such as the central bulge, spiral arms, and the galactic disk. It implements complex algorithms for realistic star placement and density variations.
+    - `nameGenerator.ts`: A utility module providing functions to generate random, plausible-sounding names for stars and other celestial objects.
+    - `outerDiskStarGenerator.ts`: Focuses on populating the sparser, outer regions of the galactic disk with stars.
+    - `planetGenerator.ts`: Handles the procedural generation of planets for individual star systems, determining the number, types, and orbital characteristics of planets around a given star.
+- **Note on Related Services**: Functionality for detailed star properties and common generation utilities has been largely integrated into `galaxyService.ts` and the modules within `src/services/galaxyGenerationModules/`.
+
+## `src/services/galaxyService.ts` (Conceptual - Functionality largely moved or integrated)
+- **Purpose**: This file's original role was to orchestrate galaxy generation. However, its functionality has been largely refactored and distributed into `src/services/galaxyGenerationModules/` (for specific generation tasks like stars, planets, names) and a top-level `generateGalaxyData.ts` (or similar, possibly within `GalaxyView.tsx`'s `useMemo` or a dedicated orchestrator file if created) which calls upon these modules.
+- **Key Functions/Responsibilities (Now handled by `generateGalaxyData.ts` and modules)**:
+  - The main `generateGalaxyData` function integrates outputs from the various generation modules in `src/services/galaxyGenerationModules/`.
+  - Manages the overall galaxy generation pipeline and ensures data consistency.
+  - Serves as the primary interface for other parts of the application (e.g., `GalaxyView.tsx`) to request and receive complete galaxy data.
+- **Dependencies**: The generation process relies heavily on the specialized modules within `src/services/galaxyGenerationModules/`.
+- **Note**: While `galaxyService.ts` might still exist or be referenced, its core responsibilities for generating the full galaxy model are now primarily within the modular structure and the orchestrating `generateGalaxyData` function.
 
 ## `src/types/galaxy.ts`
 - **Purpose**: Defines core TypeScript interfaces used throughout the application for celestial bodies.
 - **Exports**:
     - `PlanetData`: Interface describing properties of a planet (id, name, type, size, orbitRadius, orbitSpeed, color, etc.).
     - `StarData`: Interface describing properties of a star (id, name, position (`THREE.Vector3`), color (`THREE.Color`), size, planets (array of `PlanetData`), textureIndex, etc.).
+
+## `src/utils/generationUtils.ts`
+- **Purpose**: Contains miscellaneous utility functions used during the procedural generation processes, such as generating random names or performing common mathematical calculations related to generation.
+- **Exports**:
+    - `generateRandomName()`: Creates plausible random names, likely for stars or planets.
+    - Other helper functions for generation tasks (e.g., random number generation within specific distributions, vector math helpers).
+- **Key Features**:
+    - Provides reusable utility functions to keep service modules cleaner.
+    - Centralizes common, small-scale generation logic.
 
 ## `src/vite-env.d.ts`
 - **Purpose**: A TypeScript declaration file used by Vite to provide type information for Vite-specific client features (e.g., environment variables, importing assets).
