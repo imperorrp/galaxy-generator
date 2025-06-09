@@ -1,47 +1,82 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react'; // Added useRef
 import { useFrame, useThree } from '@react-three/fiber';
 import { GALAXY_RADIUS, LOD_THRESHOLDS_CONFIG, STAR_SIZE_LOD_CONFIG } from '../config/galaxyConfig';
+import * as THREE from 'three'; // Added for THREE.Vector3
+import { PointOctree, type IPointOctree } from '../utils/PointOctree'; // Import Octree
+
+const LOD_CALCULATION_INTERVAL_FRAMES = 10; // Calculate LOD e.g. every 10 frames
 
 interface UseGalaxyLODProps {
     manualLodOverride?: number | null;
     isLodManual?: boolean;
     onLodLevelChange?: (level: number) => void;
+    allStarPositions?: THREE.Vector3[]; // Prop for all star positions
 }
 
-export const useGalaxyLOD = ({ manualLodOverride, isLodManual, onLodLevelChange }: UseGalaxyLODProps) => {
+export const useGalaxyLOD = ({ manualLodOverride, isLodManual, onLodLevelChange, allStarPositions }: UseGalaxyLODProps) => {
     const { camera } = useThree();
     const [lodLevel, setLodLevel] = useState(0); // 0: Far, 1: Mid, 2: Near, 3: Very Near
+    const frameCounterRef = useRef(0); // For throttling LOD calculations
+    const octreeRef = useRef<IPointOctree | null>(null); // Ref to store the Octree instance
 
     const LOD_THRESHOLDS = useMemo(() => ({
         MID: GALAXY_RADIUS * LOD_THRESHOLDS_CONFIG.MID_FACTOR,
         NEAR: GALAXY_RADIUS * LOD_THRESHOLDS_CONFIG.NEAR_FACTOR,
         VERY_NEAR: GALAXY_RADIUS * LOD_THRESHOLDS_CONFIG.VERY_NEAR_FACTOR,
-    }), []); // GALAXY_RADIUS and LOD_THRESHOLDS_CONFIG are stable constants
+    }), []);
 
-    // Effect to call onLodLevelChange whenever lodLevel changes, including the initial state
     useEffect(() => {
         if (onLodLevelChange) {
             onLodLevelChange(lodLevel);
         }
     }, [lodLevel, onLodLevelChange]);
 
+    // Effect to build/rebuild the Octree when star positions change
+    useEffect(() => {
+        if (allStarPositions && allStarPositions.length > 0) {
+            // The PointOctree constructor will compute the bounding box from the points.
+            octreeRef.current = new PointOctree(allStarPositions);
+        } else {
+            octreeRef.current = null;
+        }
+    }, [allStarPositions]);
+
     useFrame(() => {
         if (!camera) return;
 
-        let newCalculatedLodLevel = lodLevel; // Start with current LOD level
-
         if (isLodManual && manualLodOverride !== null && manualLodOverride !== undefined) {
-            newCalculatedLodLevel = manualLodOverride;
-        } else {
-            const distToOrigin = camera.position.length();
-            if (distToOrigin < LOD_THRESHOLDS.VERY_NEAR) newCalculatedLodLevel = 3;
-            else if (distToOrigin < LOD_THRESHOLDS.NEAR) newCalculatedLodLevel = 2;
-            else if (distToOrigin < LOD_THRESHOLDS.MID) newCalculatedLodLevel = 1;
-            else newCalculatedLodLevel = 0; // Default to far
+            if (manualLodOverride !== lodLevel) {
+                setLodLevel(manualLodOverride);
+            }
+            return;
         }
 
-        if (newCalculatedLodLevel !== lodLevel) {
-            setLodLevel(newCalculatedLodLevel);
+        frameCounterRef.current++;
+        if (frameCounterRef.current % LOD_CALCULATION_INTERVAL_FRAMES === 0) {
+            let effectiveDist: number;
+            const cameraPos = camera.position;
+
+            if (octreeRef.current) {
+                const nearestStarPos = octreeRef.current.findClosestPoint(cameraPos);
+                if (nearestStarPos) {
+                    effectiveDist = cameraPos.distanceTo(nearestStarPos);
+                } else {
+                    // Fallback if Octree is empty or finds no point
+                    effectiveDist = cameraPos.length(); // Distance to origin
+                }
+            } else {
+                // Fallback if Octree is not available (e.g., no stars provided, or initial state)
+                effectiveDist = cameraPos.length(); // Distance to origin
+            }
+
+            let newCalculatedLodLevel = 0; // Default to far
+            if (effectiveDist < LOD_THRESHOLDS.VERY_NEAR) newCalculatedLodLevel = 3;
+            else if (effectiveDist < LOD_THRESHOLDS.NEAR) newCalculatedLodLevel = 2;
+            else if (effectiveDist < LOD_THRESHOLDS.MID) newCalculatedLodLevel = 1;
+
+            if (newCalculatedLodLevel !== lodLevel) {
+                setLodLevel(newCalculatedLodLevel);
+            }
         }
     });
 
@@ -50,21 +85,17 @@ export const useGalaxyLOD = ({ manualLodOverride, isLodManual, onLodLevelChange 
         let levelToUse = lodLevel;
 
         if (isLodManual && manualLodOverride !== null && manualLodOverride !== undefined) {
-            // Prefer manual override if it's valid for the config
             if (configExistsAndHasLength && manualLodOverride >= 0 && manualLodOverride < STAR_SIZE_LOD_CONFIG.length) {
                 levelToUse = manualLodOverride;
             } else {
-                // If manual override is invalid (e.g. out of bounds), use current dynamic lodLevel (which will be clamped below)
                 levelToUse = lodLevel;
             }
         }
-        // If not in manual mode, levelToUse is already lodLevel
 
-        // Clamp the chosen level to be a safe index for STAR_SIZE_LOD_CONFIG
         if (configExistsAndHasLength) {
             return Math.max(0, Math.min(levelToUse, STAR_SIZE_LOD_CONFIG.length - 1));
         }
-        return levelToUse; // Fallback if STAR_SIZE_LOD_CONFIG is not usable (should not happen in practice)
+        return levelToUse;
     }, [isLodManual, manualLodOverride, lodLevel]);
 
     return { lodLevel, lodLevelChecked };
