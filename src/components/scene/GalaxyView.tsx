@@ -78,9 +78,17 @@ const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect, manualLodOverride
         onOptimizedModeChange,
         userRequestedOptimizedMode // Pass the prop to the hook
     });
-    const { lodLevel, lodLevelChecked } = useGalaxyLOD({ manualLodOverride, isLodManual, onLodLevelChange });
-
+    
     const galaxyData = useMemo(() => generateGalaxyData(), []);
+    const allStarPositions = useMemo(() => galaxyData.stars.map(star => star.position), [galaxyData]);
+
+    const { lodLevel, lodLevelChecked } = useGalaxyLOD({ 
+        manualLodOverride, 
+        isLodManual, 
+        onLodLevelChange, 
+        allStarPositions // Pass all star positions to the hook
+    });
+
     const loadedStarTextures = useTexture(starTexturePaths);
 
     useTextureAnisotropy({ textures: loadedStarTextures, isRotating, isHighSpeedMode: isOptimizedMode, gl }); // Pass isOptimizedMode
