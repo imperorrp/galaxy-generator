@@ -22,11 +22,12 @@ export const DEFAULT_LOD_LEVELS = [
 // export const HIGH_SPEED_EXIT_THRESHOLD = 0.3;  // Radians per second (approx 17 deg/sec).
 
 // Galaxy Generation Parameters from galaxyService.ts
-export const NUM_STARS = 1000; // Total stars to generate
+export const NUM_STARS = 2000; // Total stars to generate
 export const GALAXY_RADIUS = 1000;
 
 // Fractions for star types
-export const MAIN_GALAXY_STAR_FRACTION = 0.85; // Stars in arms, bulge, bar, disk
+export const MAIN_GALAXY_STAR_FRACTION = 0.825; // Stars in arms, bulge, bar, inner disk
+export const OUTER_DISK_STAR_FRACTION = 0.025; // Stars in the outer, sparser disk plane
 export const HALO_STAR_FRACTION = 0.10;       // Loosely scattered stars around the galaxy
 export const GLOBULAR_CLUSTER_STAR_FRACTION = 0.05; // Stars in dense clusters
 
@@ -43,6 +44,11 @@ export const HALO_MIN_RADIUS_FACTOR = 0.8; // Halo stars start at GALAXY_RADIUS
 export const HALO_MAX_RADIUS_FACTOR = 1.4; // Halo stars extend to 1.8 * GALAXY_RADIUS
 export const HALO_Y_SCALE = 0.7;           // Vertical scale of the halo (less flat than disk, but not perfectly spherical)
 export const HALO_DENSITY_POWER = 2.0;     // Higher values concentrate halo stars closer to GALAXY_RADIUS
+
+// Outer Disk parameters
+export const OUTER_DISK_MIN_RADIUS_FACTOR = 1.0; // Outer disk stars start at GALAXY_RADIUS
+export const OUTER_DISK_MAX_RADIUS_FACTOR = 1.1; // Outer disk stars extend to 1.3 * GALAXY_RADIUS
+export const OUTER_DISK_Y_SCALE = 0.025;          // Vertical scale of the outer disk (very flat)
 
 // Galaxy Parameters Object
 export const GALAXY_PARAMS = {

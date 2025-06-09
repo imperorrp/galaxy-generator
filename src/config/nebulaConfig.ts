@@ -4,7 +4,7 @@ export const NEBULA_LOD_CONFIG = [ // Index corresponds to LOD level
     { id: "far", opacityFactor: 1.0 },    // LOD 0 (Far)
     { id: "mid", opacityFactor: 0.85 },   // LOD 1 (Mid)
     { id: "near", opacityFactor: 0.65 },  // LOD 2 (Near)
-    { id: "very_near", opacityFactor: 0.35 }, // LOD 3 (Very Near)
+    { id: "very_near", opacityFactor: 0.45 }, // LOD 3 (Very Near)
 ];
 
 // Nebula Generation Parameters
