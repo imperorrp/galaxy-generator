@@ -27,3 +27,76 @@ export interface StarData {
     textureIndex?: number; // Index for selecting star texture
     // ... other strategic properties
 }
+
+// Define a type for the configurable parameters from galaxyConfig.ts
+export interface ConfigurableGalaxyParams {
+  // Basic Galaxy Params
+  numStars: number;
+  galaxyRadius: number;
+  numArms: number;
+  spiralTightness: number;
+  armWidth: number;
+  bulgeSizeFactor: number;
+  centralBarLengthFactor: number;
+  colorInHex: string;
+  colorOutHex: string;
+
+  // Advanced Galaxy Params
+  mainGalaxyStarFraction: number;
+  outerDiskStarFraction: number;
+  haloStarFraction: number;
+  globularClusterStarFraction: number;
+  numGlobularClusters: number;
+  globularClusterRadiusMin: number;
+  globularClusterRadiusMax: number;
+  globularClusterDensityPower: number;
+  globularClusterPositionRadiusMinFactor: number;
+  globularClusterPositionRadiusMaxFactor: number;
+  haloMinRadiusFactor: number;
+  haloMaxRadiusFactor: number;
+  haloYScale: number;
+  haloDensityPower: number;
+  outerDiskMinRadiusFactor: number;
+  outerDiskMaxRadiusFactor: number;
+  outerDiskYScale: number;
+  spiralAngleFactor: number;
+  armPointDensityPower: number;
+  diskYScaleForArms: number;
+  subArmChance: number;
+  subArmScatterFactor: number;
+  subArmAngleOffsetRange: number;
+  bulgeYScale: number;
+  bulgeDensityPower: number;
+  centralBarWidthFactor: number;
+  centralBarYScale: number;
+  diskStarFraction: number;
+  diskStarYScale: number;
+}
+
+// Define a type for the configurable parameters from nebulaConfig.ts
+export interface ConfigurableNebulaParams {
+  // Basic Nebula Params
+  numNebulaeToGenerate: number;
+  nebulaOpacityBase: number;
+  nebulaBaseScaleMinFactor: number;
+
+  // Advanced Nebula Params
+  galacticPlaneThicknessFactor: number;
+  nebulaRadialDistPower: number;
+  nebulaMaxRadialFactorOfGalaxyRadiusFraction: number;
+  nebulaYDeviationBiasChance: number;
+  nebulaYDeviationBiasMultiplierMin: number;
+  nebulaYDeviationBiasMultiplierRandomAdd: number;
+  nebulaBaseScaleRandomFactor: number;
+  nebulaAspectRatioVariationBase: number;
+  nebulaAspectRatioVariationRandom: number;
+  nebulaRotationXYPlaneMaxRadians: number;
+  nebulaOpacityRandomFactor: number;
+  nebulaMaxAbsoluteSpinSpeed: number;
+}
+
+// Combined application configuration
+export interface AppConfig {
+  galaxy: ConfigurableGalaxyParams;
+  nebula: ConfigurableNebulaParams;
+}

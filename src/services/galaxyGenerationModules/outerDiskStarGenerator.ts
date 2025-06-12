@@ -1,10 +1,6 @@
 import * as THREE from 'three';
 import type { StarData } from '../../types/galaxy';
 import {
-    GALAXY_RADIUS,
-    OUTER_DISK_MIN_RADIUS_FACTOR,
-    OUTER_DISK_MAX_RADIUS_FACTOR,
-    OUTER_DISK_Y_SCALE,
     NUM_COMMON_STAR_TEXTURES
 } from '../../config/galaxyConfig';
 import { generateRandomName } from './nameGenerator';
@@ -20,6 +16,10 @@ interface OuterDiskStarGeneratorParams {
     colorOutside: THREE.Color;
     minStarDistanceSquared: number;
     maxPlacementAttempts: number;
+    galaxyRadius: number; // Added
+    outerDiskMinRadiusFactor: number; // Added
+    outerDiskMaxRadiusFactor: number; // Added
+    outerDiskYScale: number; // Added
 }
 
 export const generateOuterDiskStars = ({
@@ -32,7 +32,11 @@ export const generateOuterDiskStars = ({
     colorInside,
     colorOutside,
     minStarDistanceSquared,
-    maxPlacementAttempts
+    maxPlacementAttempts,
+    galaxyRadius,             // Added
+    outerDiskMinRadiusFactor, // Added
+    outerDiskMaxRadiusFactor, // Added
+    outerDiskYScale           // Added
 }: OuterDiskStarGeneratorParams): number => {
     let updatedStarCounter = currentStarCounter;
 
@@ -45,11 +49,11 @@ export const generateOuterDiskStars = ({
 
         while (!positionIsValid && attempts < maxPlacementAttempts) {
             attempts++;
-            radius = GALAXY_RADIUS * OUTER_DISK_MIN_RADIUS_FACTOR + Math.random() * GALAXY_RADIUS * (OUTER_DISK_MAX_RADIUS_FACTOR - OUTER_DISK_MIN_RADIUS_FACTOR);
+            radius = galaxyRadius * outerDiskMinRadiusFactor + Math.random() * galaxyRadius * (outerDiskMaxRadiusFactor - outerDiskMinRadiusFactor);
             const angle = Math.random() * Math.PI * 2;
             x = Math.cos(angle) * radius;
             z = Math.sin(angle) * radius;
-            y = (Math.random() - 0.5) * 2 * GALAXY_RADIUS * OUTER_DISK_Y_SCALE;
+            y = (Math.random() - 0.5) * 2 * galaxyRadius * outerDiskYScale;
 
             positionIsValid = true;
             for (let k = 0; k < stars.length; k++) {
@@ -62,7 +66,7 @@ export const generateOuterDiskStars = ({
             if (!positionIsValid && attempts >= maxPlacementAttempts) { positionIsValid = true; } // Force placement if too many attempts
         }
 
-        const lerpFactor = Math.min(1.0, (radius - GALAXY_RADIUS * OUTER_DISK_MIN_RADIUS_FACTOR) / (GALAXY_RADIUS * (OUTER_DISK_MAX_RADIUS_FACTOR - OUTER_DISK_MIN_RADIUS_FACTOR) * 0.8));
+        const lerpFactor = Math.min(1.0, (radius - galaxyRadius * outerDiskMinRadiusFactor) / (galaxyRadius * (outerDiskMaxRadiusFactor - outerDiskMinRadiusFactor) * 0.8));
         const mixedColor = colorOutside.clone().lerp(colorInside, 0.1 + lerpFactor * 0.1); // Slightly more varied than pure outside, leaning towards outside
         const baseSize = Math.random() * 0.8 + 0.3; // Generally smaller stars for the outer disk
         const textureIndex = Math.floor(Math.random() * NUM_COMMON_STAR_TEXTURES); // Mostly common stars

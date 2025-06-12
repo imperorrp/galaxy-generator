@@ -6,7 +6,8 @@ import * as THREE from 'three';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'; // Added useThree
 import { PointMaterial, Html, Stars as DreiStars, useTexture } from '@react-three/drei';
 import { generateGalaxyData } from '../../services/galaxyService';
-import { GALAXY_RADIUS } from '../../config/galaxyConfig';
+import type { ConfigurableGalaxyParams } from '../../types/galaxy'; // Corrected import path
+// GALAXY_RADIUS will come from props
 import type { StarData } from '../../types/galaxy';
 import {
     NUM_COMMON_STAR_TEXTURES,
@@ -55,7 +56,10 @@ interface HoveredStarInfo {
     position: THREE.Vector3;
 }
 
-interface GalaxyViewProps {
+import type { ConfigurableNebulaParams } from '../../types/galaxy'; // Import ConfigurableNebulaParams
+
+interface GalaxyViewProps extends ConfigurableGalaxyParams { // Extend props with ConfigurableGalaxyParams
+    nebulaConfig: ConfigurableNebulaParams; // Add nebula config prop
     onStarSelect: (starData: StarData) => void;
     manualLodOverride?: number | null;
     isLodManual?: boolean;
@@ -63,9 +67,59 @@ interface GalaxyViewProps {
     userRequestedOptimizedMode?: boolean; // New prop to control optimized mode from parent
     onOptimizedModeChange?: (isActive: boolean) => void; // Renamed from onHighSpeedModeChange
     onPerformanceMetricsChange?: (metrics: { frameTime: number; angularSpeed: number; }) => void; // Removed enterThreshold
+    // nebulaConfig is now part of the props due to the interface change above
 }
 
-const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect, manualLodOverride, isLodManual, onLodLevelChange, userRequestedOptimizedMode, onOptimizedModeChange, onPerformanceMetricsChange }) => {
+const GalaxyView: React.FC<GalaxyViewProps> = ({
+    onStarSelect,
+    manualLodOverride,
+    isLodManual,
+    onLodLevelChange,
+    userRequestedOptimizedMode,
+    onOptimizedModeChange,
+    onPerformanceMetricsChange,
+    // Destructure all ConfigurableGalaxyParams props
+    numStars,
+    galaxyRadius,
+    numArms,
+    spiralTightness,
+    armWidth,
+    bulgeSizeFactor,
+    centralBarLengthFactor,
+    colorInHex,
+    colorOutHex,
+    // Nebula config will be destructured here as well
+    nebulaConfig,
+    mainGalaxyStarFraction,
+    outerDiskStarFraction,
+    haloStarFraction,
+    globularClusterStarFraction,
+    numGlobularClusters,
+    globularClusterRadiusMin,
+    globularClusterRadiusMax,
+    globularClusterDensityPower,
+    globularClusterPositionRadiusMinFactor,
+    globularClusterPositionRadiusMaxFactor,
+    haloMinRadiusFactor,
+    haloMaxRadiusFactor,
+    haloYScale,
+    haloDensityPower,
+    outerDiskMinRadiusFactor,
+    outerDiskMaxRadiusFactor,
+    outerDiskYScale,
+    spiralAngleFactor,
+    armPointDensityPower,
+    diskYScaleForArms,
+    subArmChance,
+    subArmScatterFactor,
+    subArmAngleOffsetRange,
+    bulgeYScale,
+    bulgeDensityPower,
+    centralBarWidthFactor,
+    centralBarYScale,
+    diskStarFraction,
+    diskStarYScale,
+}) => {
     const { gl, camera } = useThree();
     const { 
         isRotating, 
@@ -79,7 +133,60 @@ const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect, manualLodOverride
         userRequestedOptimizedMode // Pass the prop to the hook
     });
     
-    const galaxyData = useMemo(() => generateGalaxyData(), []);
+    const galaxyData = useMemo(() => {
+        // Pass all config props to generateGalaxyData
+        return generateGalaxyData({
+            numStars,
+            galaxyRadius,
+            numArms,
+            spiralTightness,
+            armWidth,
+            bulgeSizeFactor,
+            centralBarLengthFactor,
+            colorInHex,
+            colorOutHex,
+            mainGalaxyStarFraction,
+            outerDiskStarFraction,
+            haloStarFraction,
+            globularClusterStarFraction,
+            numGlobularClusters,
+            globularClusterRadiusMin,
+            globularClusterRadiusMax,
+            globularClusterDensityPower,
+            globularClusterPositionRadiusMinFactor,
+            globularClusterPositionRadiusMaxFactor,
+            haloMinRadiusFactor,
+            haloMaxRadiusFactor,
+            haloYScale,
+            haloDensityPower,
+            outerDiskMinRadiusFactor,
+            outerDiskMaxRadiusFactor,
+            outerDiskYScale,
+            spiralAngleFactor,
+            armPointDensityPower,
+            diskYScaleForArms,
+            subArmChance,
+            subArmScatterFactor,
+            subArmAngleOffsetRange,
+            bulgeYScale,
+            bulgeDensityPower,
+            centralBarWidthFactor,
+            centralBarYScale,
+            diskStarFraction,
+            diskStarYScale,
+        });
+    }, [
+        numStars, galaxyRadius, numArms, spiralTightness, armWidth, 
+        bulgeSizeFactor, centralBarLengthFactor, colorInHex, colorOutHex,
+        mainGalaxyStarFraction, outerDiskStarFraction, haloStarFraction, globularClusterStarFraction,
+        numGlobularClusters, globularClusterRadiusMin, globularClusterRadiusMax, globularClusterDensityPower,
+        globularClusterPositionRadiusMinFactor, globularClusterPositionRadiusMaxFactor, haloMinRadiusFactor,
+        haloMaxRadiusFactor, haloYScale, haloDensityPower, outerDiskMinRadiusFactor, outerDiskMaxRadiusFactor,
+        outerDiskYScale, spiralAngleFactor, armPointDensityPower, diskYScaleForArms, subArmChance,
+        subArmScatterFactor, subArmAngleOffsetRange, bulgeYScale, bulgeDensityPower, centralBarWidthFactor,
+        centralBarYScale, diskStarFraction, diskStarYScale
+    ]);
+
     const allStarPositions = useMemo(() => galaxyData.stars.map(star => star.position), [galaxyData]);
 
     const { lodLevel, lodLevelChecked } = useGalaxyLOD({ 
@@ -159,10 +266,12 @@ const GalaxyView: React.FC<GalaxyViewProps> = ({ onStarSelect, manualLodOverride
                 isLodManual={isLodManual ?? false}
                 manualLodOverride={manualLodOverride}
                 isHighSpeedMode={isOptimizedMode} // Renamed to isOptimizedMode
+                config={nebulaConfig} // Pass the nebula config
+                galaxyRadius={galaxyRadius} // Pass galaxyRadius
             />
 
             {/* Background Stars (Distant) */}
-            <DreiStars radius={GALAXY_RADIUS * 2} depth={50} count={10000} factor={10} saturation={0} fade speed={isOptimizedMode ? 5 : 1} /> {/* Renamed to isOptimizedMode */}
+            <DreiStars radius={galaxyRadius * 2} depth={50} count={10000} factor={10} saturation={0} fade speed={isOptimizedMode ? 5 : 1} /> {/* Renamed to isOptimizedMode, use galaxyRadius */}
 
             {/* Hovered Star Info */}
             {hoveredStar && !selectedStar && (

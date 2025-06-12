@@ -1,14 +1,6 @@
 import * as THREE from 'three';
 import type { StarData } from '../../types/galaxy';
 import {
-    NUM_STARS, // Used for currentStarCounter check
-    GALAXY_RADIUS,
-    NUM_GLOBULAR_CLUSTERS,
-    GLOBULAR_CLUSTER_RADIUS_MIN,
-    GLOBULAR_CLUSTER_RADIUS_MAX,
-    GLOBULAR_CLUSTER_DENSITY_POWER,
-    GLOBULAR_CLUSTER_POSITION_RADIUS_MIN_FACTOR,
-    GLOBULAR_CLUSTER_POSITION_RADIUS_MAX_FACTOR,
     NUM_COMMON_STAR_TEXTURES
 } from '../../config/galaxyConfig';
 import { generateRandomName } from './nameGenerator';
@@ -22,6 +14,14 @@ interface GlobularClusterStarGeneratorParams {
     currentStarCounter: number;
     minStarDistanceSquared: number;
     maxPlacementAttempts: number;
+    totalAllowedStars: number;
+    galaxyRadius: number;
+    numClustersToGenerate: number;
+    globularClusterRadiusMin: number;
+    globularClusterRadiusMax: number;
+    globularClusterDensityPower: number;
+    globularClusterPositionRadiusMinFactor: number;
+    globularClusterPositionRadiusMaxFactor: number;
 }
 
 export const generateGlobularClusterStars = ({
@@ -32,13 +32,21 @@ export const generateGlobularClusterStars = ({
     tempSizes,
     currentStarCounter,
     minStarDistanceSquared,
-    maxPlacementAttempts
+    maxPlacementAttempts,
+    totalAllowedStars, // Added
+    galaxyRadius,
+    numClustersToGenerate,
+    globularClusterRadiusMin,
+    globularClusterRadiusMax,
+    globularClusterDensityPower,
+    globularClusterPositionRadiusMinFactor,
+    globularClusterPositionRadiusMaxFactor
 }: GlobularClusterStarGeneratorParams): number => {
     let updatedStarCounter = currentStarCounter;
 
-    if (starsPerCluster > 0 && NUM_GLOBULAR_CLUSTERS > 0) {
-        for (let c = 0; c < NUM_GLOBULAR_CLUSTERS; c++) {
-            const clusterOrbitRadius = GALAXY_RADIUS * (GLOBULAR_CLUSTER_POSITION_RADIUS_MIN_FACTOR + Math.random() * (GLOBULAR_CLUSTER_POSITION_RADIUS_MAX_FACTOR - GLOBULAR_CLUSTER_POSITION_RADIUS_MIN_FACTOR));
+    if (starsPerCluster > 0 && numClustersToGenerate > 0) { // Changed NUM_GLOBULAR_CLUSTERS to numClustersToGenerate
+        for (let c = 0; c < numClustersToGenerate; c++) { // Changed NUM_GLOBULAR_CLUSTERS to numClustersToGenerate
+            const clusterOrbitRadius = galaxyRadius * (globularClusterPositionRadiusMinFactor + Math.random() * (globularClusterPositionRadiusMaxFactor - globularClusterPositionRadiusMinFactor));
             const clusterPhi = Math.random() * Math.PI * 2;
             const clusterCostheta = (Math.random() - 0.5) * 2;
             const clusterSintheta = Math.sqrt(1 - clusterCostheta * clusterCostheta);
@@ -47,7 +55,7 @@ export const generateGlobularClusterStars = ({
             const cy = clusterOrbitRadius * clusterCostheta;
 
             for (let s = 0; s < starsPerCluster; s++, updatedStarCounter++) {
-                if (updatedStarCounter >= NUM_STARS) break;
+                if (updatedStarCounter >= totalAllowedStars) break; // Changed NUM_STARS to totalAllowedStars
                 const id = `star-${updatedStarCounter}`;
                 let x: number=0, y: number=0, z: number=0;
                 let positionIsValid = false;
@@ -55,7 +63,7 @@ export const generateGlobularClusterStars = ({
 
                 while (!positionIsValid && attempts < maxPlacementAttempts) {
                     attempts++;
-                    const starRelRadius = Math.pow(Math.random(), GLOBULAR_CLUSTER_DENSITY_POWER) * (Math.random() * (GLOBULAR_CLUSTER_RADIUS_MAX - GLOBULAR_CLUSTER_RADIUS_MIN) + GLOBULAR_CLUSTER_RADIUS_MIN);
+                    const starRelRadius = Math.pow(Math.random(), globularClusterDensityPower) * (Math.random() * (globularClusterRadiusMax - globularClusterRadiusMin) + globularClusterRadiusMin);
                     const starRelPhi = Math.random() * Math.PI * 2;
                     const starRelCostheta = (Math.random() - 0.5) * 2;
                     const starRelSintheta = Math.sqrt(1 - starRelCostheta * starRelCostheta);
@@ -83,7 +91,7 @@ export const generateGlobularClusterStars = ({
                 tempColors.push(mixedColor.r, mixedColor.g, mixedColor.b);
                 tempSizes.push(baseSize);
             }
-            if (updatedStarCounter >= NUM_STARS) break;
+            if (updatedStarCounter >= totalAllowedStars) break; // Changed NUM_STARS to totalAllowedStars
         }
     }
     return updatedStarCounter;

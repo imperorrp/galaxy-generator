@@ -1,12 +1,6 @@
 import * as THREE from 'three';
 import type { StarData } from '../../types/galaxy';
 import {
-    NUM_STARS, // Used for currentStarCounter check
-    GALAXY_RADIUS,
-    HALO_MIN_RADIUS_FACTOR,
-    HALO_DENSITY_POWER,
-    HALO_MAX_RADIUS_FACTOR,
-    HALO_Y_SCALE,
     NUM_COMMON_STAR_TEXTURES
 } from '../../config/galaxyConfig';
 import { generateRandomName } from './nameGenerator';
@@ -23,6 +17,12 @@ interface HaloStarGeneratorParams {
     colorInside: THREE.Color; // For lerping
     minStarDistanceSquared: number;
     maxPlacementAttempts: number;
+    galaxyRadius: number; // Added
+    haloMinRadiusFactor: number; // Added
+    haloMaxRadiusFactor: number; // Added
+    haloYScale: number; // Added
+    haloDensityPower: number; // Added
+    totalAllowedStars: number; // Added
 }
 
 export const generateHaloStars = ({
@@ -35,12 +35,18 @@ export const generateHaloStars = ({
     colorOutside,
     colorInside,
     minStarDistanceSquared,
-    maxPlacementAttempts
+    maxPlacementAttempts,
+    galaxyRadius,      // Added
+    haloMinRadiusFactor, // Added
+    haloMaxRadiusFactor, // Added
+    haloYScale,          // Added
+    haloDensityPower,    // Added
+    totalAllowedStars    // Added
 }: HaloStarGeneratorParams): number => {
     let updatedStarCounter = currentStarCounter;
 
     for (let i = 0; i < numHaloStars; i++, updatedStarCounter++) {
-        if (updatedStarCounter >= NUM_STARS) break; // Ensure we don't exceed total star count
+        if (updatedStarCounter >= totalAllowedStars) break; // Ensure we don't exceed total star count, use passed param
         const id = `star-${updatedStarCounter}`;
         let x: number =0, y: number=0, z: number=0;
         let positionIsValid = false;
@@ -49,13 +55,13 @@ export const generateHaloStars = ({
 
         while (!positionIsValid && attempts < maxPlacementAttempts) {
             attempts++;
-            radius = GALAXY_RADIUS * HALO_MIN_RADIUS_FACTOR + Math.pow(Math.random(), HALO_DENSITY_POWER) * GALAXY_RADIUS * (HALO_MAX_RADIUS_FACTOR - HALO_MIN_RADIUS_FACTOR);
+            radius = galaxyRadius * haloMinRadiusFactor + Math.pow(Math.random(), haloDensityPower) * galaxyRadius * (haloMaxRadiusFactor - haloMinRadiusFactor);
             const phi = Math.random() * Math.PI * 2;
             const costheta = (Math.random() - 0.5) * 2;
             const sintheta = Math.sqrt(1 - costheta*costheta);
             x = radius * sintheta * Math.cos(phi);
             z = radius * sintheta * Math.sin(phi);
-            y = radius * costheta * HALO_Y_SCALE;
+            y = radius * costheta * haloYScale;
 
             positionIsValid = true;
             for (let k = 0; k < stars.length; k++) {
@@ -68,7 +74,7 @@ export const generateHaloStars = ({
             if (!positionIsValid && attempts >= maxPlacementAttempts) { positionIsValid = true; } // Force placement
         }
 
-        const lerpFactor = Math.min(1.0, (radius - GALAXY_RADIUS * HALO_MIN_RADIUS_FACTOR) / (GALAXY_RADIUS * (HALO_MAX_RADIUS_FACTOR - HALO_MIN_RADIUS_FACTOR) * 0.5));
+        const lerpFactor = Math.min(1.0, (radius - galaxyRadius * haloMinRadiusFactor) / (galaxyRadius * (haloMaxRadiusFactor - haloMinRadiusFactor) * 0.5));
         const mixedColor = colorOutside.clone().lerp(colorInside, 0.01 + lerpFactor * 0.05); // Very faint, mostly outside color
         const baseSize = Math.random() * 0.6 + 0.2; // Halo stars are generally small and dim
         const textureIndex = Math.floor(Math.random() * NUM_COMMON_STAR_TEXTURES);

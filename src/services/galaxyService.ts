@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { StarData, PlanetData } from '../types/galaxy';
+import type { ConfigurableGalaxyParams } from '../components/ui/GalaxyConfigPanel'; // Import ConfigurableGalaxyParams
 import {
     MIN_PLANETS_PER_SYSTEM,
     MAX_PLANETS_PER_SYSTEM,
@@ -33,7 +34,7 @@ import {
     OUTER_DISK_MIN_RADIUS_FACTOR, // Added
     OUTER_DISK_MAX_RADIUS_FACTOR, // Added
     OUTER_DISK_Y_SCALE, // Added
-    GALAXY_PARAMS
+    GALAXY_PARAMS as DEFAULT_GALAXY_PARAMS // Rename imported GALAXY_PARAMS to avoid conflict
 } from '../config/galaxyConfig';
 import { generateRandomName } from './galaxyGenerationModules/nameGenerator'; // Added import
 import { generatePlanets } from './galaxyGenerationModules/planetGenerator'; // Added import
@@ -53,7 +54,7 @@ export interface GalaxyData {
 
 // GALAXY_PARAMS is now imported from galaxyConfig.ts
 
-export const generateGalaxyData = (): GalaxyData => {
+export const generateGalaxyData = (config: ConfigurableGalaxyParams): GalaxyData => {
     const MIN_STAR_DISTANCE = 25.0;
     const MIN_STAR_DISTANCE_SQUARED = MIN_STAR_DISTANCE * MIN_STAR_DISTANCE;
     const MAX_PLACEMENT_ATTEMPTS = 10;
@@ -63,18 +64,25 @@ export const generateGalaxyData = (): GalaxyData => {
     const tempColors: number[] = [];
     const tempSizes: number[] = [];
 
-    const colorInside = new THREE.Color(GALAXY_PARAMS.colorInHex);
-    const colorOutside = new THREE.Color(GALAXY_PARAMS.colorOutHex);
+    const colorInside = new THREE.Color(config.colorInHex);
+    const colorOutside = new THREE.Color(config.colorOutHex);
 
-    const actualBulgeRadius = GALAXY_RADIUS * GALAXY_PARAMS.bulgeSizeFactor;
-    const actualArmWidth = GALAXY_PARAMS.armWidth;
-    const actualBarLength = GALAXY_RADIUS * GALAXY_PARAMS.centralBarLengthFactor;
-    const actualBarWidth = GALAXY_RADIUS * GALAXY_PARAMS.centralBarWidthFactor;
+    const actualBulgeRadius = config.galaxyRadius * config.bulgeSizeFactor;
+    const actualArmWidth = config.armWidth;
+    const actualBarLength = config.galaxyRadius * config.centralBarLengthFactor;
+    // Assuming centralBarWidthFactor is still from default or needs to be added to ConfigurableGalaxyParams
+    // For now, using the default. If it needs to be configurable, it should be added to ConfigurableGalaxyParams.
+    const actualBarWidth = config.galaxyRadius * DEFAULT_GALAXY_PARAMS.centralBarWidthFactor;
 
-    const numMainGalaxyStars = Math.floor(NUM_STARS * MAIN_GALAXY_STAR_FRACTION);
-    const numOuterDiskStars = Math.floor(NUM_STARS * OUTER_DISK_STAR_FRACTION); // Added
-    const numHaloStars = Math.floor(NUM_STARS * HALO_STAR_FRACTION);
-    const numGlobularClusterStarsTotal = NUM_STARS - numMainGalaxyStars - numHaloStars - numOuterDiskStars; // Adjusted
+    // Use numStars from config
+    const numGlobularClusterStarsTotal = Math.floor(config.numStars * GLOBULAR_CLUSTER_STAR_FRACTION);
+    const numOuterDiskStars = Math.floor(config.numStars * OUTER_DISK_STAR_FRACTION);
+    const numHaloStars = Math.floor(config.numStars * HALO_STAR_FRACTION);
+    
+    // Main galaxy stars get the rest to ensure total count matches config.numStars
+    // and that numMainGalaxyStars is not negative (it won't be with current fractions summing to 1)
+    const numMainGalaxyStars = Math.max(0, config.numStars - numGlobularClusterStarsTotal - numOuterDiskStars - numHaloStars);
+
     const starsPerCluster = numGlobularClusterStarsTotal > 0 && NUM_GLOBULAR_CLUSTERS > 0
         ? Math.floor(numGlobularClusterStarsTotal / NUM_GLOBULAR_CLUSTERS)
         : 0;
@@ -82,6 +90,8 @@ export const generateGalaxyData = (): GalaxyData => {
     let currentStarCounter = 0; // Tracks total stars generated across all types
 
     // 1. Generate Main Galaxy Stars
+    // Helper functions like generateMainGalaxyStars will need to be updated to accept config parameters
+    // For example, passing config or specific values like config.numArms, config.spiralTightness etc.
     currentStarCounter = generateMainGalaxyStars({
         numMainGalaxyStars,
         stars,
@@ -96,7 +106,23 @@ export const generateGalaxyData = (): GalaxyData => {
         actualBulgeRadius,
         actualArmWidth,
         actualBarLength,
-        actualBarWidth
+        actualBarWidth,
+        // Pass relevant config params for arms, spiral, etc.
+        galaxyRadius: config.galaxyRadius, 
+        numArms: config.numArms,
+        spiralTightness: config.spiralTightness,
+        // Other GALAXY_PARAMS used by generateMainGalaxyStars would need to be passed from config or DEFAULT_GALAXY_PARAMS
+        spiralAngleFactor: DEFAULT_GALAXY_PARAMS.spiralAngleFactor, 
+        armPointDensityPower: DEFAULT_GALAXY_PARAMS.armPointDensityPower,
+        diskYScaleForArms: DEFAULT_GALAXY_PARAMS.diskYScaleForArms,
+        subArmChance: DEFAULT_GALAXY_PARAMS.subArmChance,
+        subArmScatterFactor: DEFAULT_GALAXY_PARAMS.subArmScatterFactor,
+        subArmAngleOffsetRange: DEFAULT_GALAXY_PARAMS.subArmAngleOffsetRange,
+        bulgeYScale: DEFAULT_GALAXY_PARAMS.bulgeYScale,
+        bulgeDensityPower: DEFAULT_GALAXY_PARAMS.bulgeDensityPower,
+        centralBarYScale: DEFAULT_GALAXY_PARAMS.centralBarYScale,
+        diskStarFraction: DEFAULT_GALAXY_PARAMS.diskStarFraction,
+        diskStarYScale: DEFAULT_GALAXY_PARAMS.diskStarYScale
     });
 
     // 2. Generate Outer Disk Stars
@@ -110,7 +136,12 @@ export const generateGalaxyData = (): GalaxyData => {
         colorInside,
         colorOutside,
         minStarDistanceSquared: MIN_STAR_DISTANCE_SQUARED,
-        maxPlacementAttempts: MAX_PLACEMENT_ATTEMPTS
+        maxPlacementAttempts: MAX_PLACEMENT_ATTEMPTS,
+        galaxyRadius: config.galaxyRadius, // Pass galaxyRadius from config
+        outerDiskMinRadiusFactor: config.outerDiskMinRadiusFactor,
+        outerDiskMaxRadiusFactor: config.outerDiskMaxRadiusFactor,
+        outerDiskYScale: config.outerDiskYScale
+        // Note: The generateOuterDiskStars function signature will need to be updated.
     });
 
     // 3. Generate Halo Stars
@@ -124,7 +155,13 @@ export const generateGalaxyData = (): GalaxyData => {
         colorOutside,
         colorInside,
         minStarDistanceSquared: MIN_STAR_DISTANCE_SQUARED,
-        maxPlacementAttempts: MAX_PLACEMENT_ATTEMPTS
+        maxPlacementAttempts: MAX_PLACEMENT_ATTEMPTS,
+        galaxyRadius: config.galaxyRadius, // Pass galaxyRadius from config
+        haloMinRadiusFactor: HALO_MIN_RADIUS_FACTOR,
+        haloMaxRadiusFactor: HALO_MAX_RADIUS_FACTOR,
+        haloYScale: HALO_Y_SCALE,
+        haloDensityPower: HALO_DENSITY_POWER,
+        totalAllowedStars: config.numStars // Ensure total star count is respected
     });
 
     // 4. Generate Globular Clusters
@@ -136,15 +173,23 @@ export const generateGalaxyData = (): GalaxyData => {
         tempSizes,
         currentStarCounter,
         minStarDistanceSquared: MIN_STAR_DISTANCE_SQUARED,
-        maxPlacementAttempts: MAX_PLACEMENT_ATTEMPTS
+        maxPlacementAttempts: MAX_PLACEMENT_ATTEMPTS,
+        totalAllowedStars: config.numStars, 
+        galaxyRadius: config.galaxyRadius, // Pass galaxyRadius from config
+        numClustersToGenerate: NUM_GLOBULAR_CLUSTERS, // Pass the imported constant
+        globularClusterRadiusMin: GLOBULAR_CLUSTER_RADIUS_MIN,
+        globularClusterRadiusMax: GLOBULAR_CLUSTER_RADIUS_MAX,
+        globularClusterDensityPower: GLOBULAR_CLUSTER_DENSITY_POWER,
+        globularClusterPositionRadiusMinFactor: GLOBULAR_CLUSTER_POSITION_RADIUS_MIN_FACTOR,
+        globularClusterPositionRadiusMaxFactor: GLOBULAR_CLUSTER_POSITION_RADIUS_MAX_FACTOR
     });
 
     // Ensure NUM_STARS are generated if fractions/rounding caused minor discrepancies
     // This loop is a fallback and ideally shouldn't run if counts are precise.
-    while (currentStarCounter < NUM_STARS) {
+    while (currentStarCounter < config.numStars) { // Use config.numStars
         const id = `star-${currentStarCounter}`;
         // Generate as a generic distant halo star to fill up space
-        const radius = GALAXY_RADIUS * (HALO_MAX_RADIUS_FACTOR * 0.8 + Math.random() * 0.4); // Outer halo
+        const radius = config.galaxyRadius * (HALO_MAX_RADIUS_FACTOR * 0.8 + Math.random() * 0.4); // Use config.galaxyRadius
         const phi = Math.random() * Math.PI * 2;
         const costheta = (Math.random() - 0.5) * 2;
         const sintheta = Math.sqrt(1 - costheta*costheta);

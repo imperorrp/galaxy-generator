@@ -1,25 +1,10 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { GALAXY_RADIUS } from '../../config/galaxyConfig';
 import {
-    NUM_NEBULA_TEXTURES,
-    NEBULA_LOD_CONFIG,
-    NUM_NEBULAE_TO_GENERATE,
-    GALACTIC_PLANE_THICKNESS_FACTOR,
-    NEBULA_RADIAL_DIST_POWER,
-    NEBULA_MAX_RADIAL_FACTOR_OF_GALAXY_RADIUS_FRACTION,
-    NEBULA_Y_DEVIATION_BIAS_CHANCE,
-    NEBULA_Y_DEVIATION_BIAS_MULTIPLIER_MIN,
-    NEBULA_Y_DEVIATION_BIAS_MULTIPLIER_RANDOM_ADD,
-    NEBULA_BASE_SCALE_MIN_FACTOR,
-    NEBULA_BASE_SCALE_RANDOM_FACTOR,
-    NEBULA_ASPECT_RATIO_VARIATION_BASE,
-    NEBULA_ASPECT_RATIO_VARIATION_RANDOM,
-    NEBULA_ROTATION_XY_PLANE_MAX_RADIANS,
-    NEBULA_OPACITY_BASE,
-    NEBULA_OPACITY_RANDOM_FACTOR,
-    NEBULA_MAX_ABSOLUTE_SPIN_SPEED
+    NUM_NEBULA_TEXTURES, // This is not configurable from UI, so keep import
+    NEBULA_LOD_CONFIG // This is not configurable from UI, so keep import
 } from '../../config/nebulaConfig';
+import type { ConfigurableNebulaParams } from '../../types/galaxy';
 import NebulaCloud from './NebulaCloud';
 
 interface NebulaRendererProps {
@@ -28,6 +13,8 @@ interface NebulaRendererProps {
     isLodManual: boolean;
     manualLodOverride?: number | null;
     isHighSpeedMode: boolean;
+    config: ConfigurableNebulaParams; // Added config prop
+    galaxyRadius: number; // Added galaxyRadius prop
 }
 
 const NebulaRenderer: React.FC<NebulaRendererProps> = ({
@@ -36,17 +23,19 @@ const NebulaRenderer: React.FC<NebulaRendererProps> = ({
     isLodManual,
     manualLodOverride,
     isHighSpeedMode,
+    config,
+    galaxyRadius,
 }) => {
 
     const baseGeneratedNebulae = useMemo(() => {
         const nebulae = [];
-        const galacticPlaneThickness = GALAXY_RADIUS * GALACTIC_PLANE_THICKNESS_FACTOR;
+        const galacticPlaneThickness = galaxyRadius * config.galacticPlaneThicknessFactor;
 
-        for (let i = 0; i < NUM_NEBULAE_TO_GENERATE; i++) {
-            const textureUrl = nebulaTexturePaths[i % NUM_NEBULA_TEXTURES];
+        for (let i = 0; i < config.numNebulaeToGenerate; i++) {
+            const textureUrl = nebulaTexturePaths[i % NUM_NEBULA_TEXTURES]; // NUM_NEBULA_TEXTURES is fixed
 
-            const rFraction = Math.pow(Math.random(), NEBULA_RADIAL_DIST_POWER);
-            const r = GALAXY_RADIUS * rFraction * NEBULA_MAX_RADIAL_FACTOR_OF_GALAXY_RADIUS_FRACTION;
+            const rFraction = Math.pow(Math.random(), config.nebulaRadialDistPower);
+            const r = galaxyRadius * rFraction * config.nebulaMaxRadialFactorOfGalaxyRadiusFraction;
             
             const theta = Math.random() * 2 * Math.PI;
 
@@ -54,25 +43,25 @@ const NebulaRenderer: React.FC<NebulaRendererProps> = ({
             const z = r * Math.sin(theta);
 
             let y = (Math.random() - 0.5) * 2 * galacticPlaneThickness;
-            if (Math.random() < NEBULA_Y_DEVIATION_BIAS_CHANCE) {
-                y *= (NEBULA_Y_DEVIATION_BIAS_MULTIPLIER_MIN + Math.random() * NEBULA_Y_DEVIATION_BIAS_MULTIPLIER_RANDOM_ADD);
+            if (Math.random() < config.nebulaYDeviationBiasChance) {
+                y *= (config.nebulaYDeviationBiasMultiplierMin + Math.random() * config.nebulaYDeviationBiasMultiplierRandomAdd);
             }
             
-            const baseScaleValue = GALAXY_RADIUS * (NEBULA_BASE_SCALE_MIN_FACTOR + Math.random() * NEBULA_BASE_SCALE_RANDOM_FACTOR);
+            const baseScaleValue = galaxyRadius * (config.nebulaBaseScaleMinFactor + Math.random() * config.nebulaBaseScaleRandomFactor);
             const scale = [
-                baseScaleValue * (NEBULA_ASPECT_RATIO_VARIATION_BASE + Math.random() * NEBULA_ASPECT_RATIO_VARIATION_RANDOM),
-                baseScaleValue * (NEBULA_ASPECT_RATIO_VARIATION_BASE + Math.random() * NEBULA_ASPECT_RATIO_VARIATION_RANDOM),
-                1
+                baseScaleValue * (config.nebulaAspectRatioVariationBase + Math.random() * config.nebulaAspectRatioVariationRandom),
+                baseScaleValue * (config.nebulaAspectRatioVariationBase + Math.random() * config.nebulaAspectRatioVariationRandom),
+                1 // Scale Z is 1 for a plane
             ] as [number, number, number];
 
             const rotationXYZ = [
-                (Math.random() * 2 - 1) * NEBULA_ROTATION_XY_PLANE_MAX_RADIANS,
-                Math.random() * Math.PI * 2,
-                (Math.random() * 2 - 1) * NEBULA_ROTATION_XY_PLANE_MAX_RADIANS,
+                (Math.random() * 2 - 1) * config.nebulaRotationXYPlaneMaxRadians,
+                Math.random() * Math.PI * 2, // Full Y rotation
+                (Math.random() * 2 - 1) * config.nebulaRotationXYPlaneMaxRadians,
             ] as [number, number, number];
 
-            const opacity = NEBULA_OPACITY_BASE + Math.random() * NEBULA_OPACITY_RANDOM_FACTOR;
-            const spinSpeed = (Math.random() - 0.5) * 2 * NEBULA_MAX_ABSOLUTE_SPIN_SPEED;
+            const opacity = config.nebulaOpacityBase + Math.random() * config.nebulaOpacityRandomFactor;
+            const spinSpeed = (Math.random() - 0.5) * 2 * config.nebulaMaxAbsoluteSpinSpeed;
 
             nebulae.push({
                 key: `nebula-${i}`,
@@ -85,7 +74,7 @@ const NebulaRenderer: React.FC<NebulaRendererProps> = ({
             });
         }
         return nebulae;
-    }, [nebulaTexturePaths]); // GALAXY_RADIUS and other configs are stable imports
+    }, [nebulaTexturePaths, config, galaxyRadius]);
 
     const processedNebulae = useMemo(() => {
         const currentLod = (isLodManual && manualLodOverride !== null && manualLodOverride !== undefined) 
