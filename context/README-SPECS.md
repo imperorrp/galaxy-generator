@@ -16,7 +16,8 @@ The application will be built using React, Three.js, and React Three Fiber (R3F)
     - Hover effect: Displaying star name on hover.
     - Transition to System View upon star selection.
     - Dynamic Level of Detail (LoD) for star rendering to optimize performance, managed by the `useGalaxyLOD` hook. This system uses an Octree (`src/utils/PointOctree.ts`) to find the nearest star to the camera, calculating LOD every 10 frames. If no star is found, distance to galaxy origin is used as a fallback.
-    - Optimized Camera Mode (replaces High-Speed Rotation Mode, now externally controlled and monitors performance degradation) for performance adjustments during camera movement or when performance issues are detected.
+    - **Live Galaxy Configuration Panel:** A powerful UI panel (`src/components/ui/GalaxyConfigPanel.tsx`) allows for real-time tweaking of dozens of parameters for galaxy and nebula generation. This enables dynamic experimentation and fine-tuning of the visuals.
+    - **User-Controlled Optimized Mode:** The application features an optimized rendering mode that the user can toggle manually. This mode is managed via the `useCameraDynamics.ts` hook, which responds to user input (`userRequestedOptimizedMode`) rather than automatically activating based on camera speed. It reports performance metrics, allowing for a controlled trade-off between visual quality and performance.
 
 ### 2.2. System View (MVP)
     - Displays a selected star and its procedurally generated planets.

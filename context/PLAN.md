@@ -106,26 +106,34 @@ This document outlines the step-by-step development plan for the Galactic Conque
 
 ## Phase 3: Enhancements & Important Systems (2-4 days)
 
-1.  **[TASK]** Galaxy Visual Polish:
-    *   **[DONE]** Implement realistic spiral galaxy structure (central bulge, spiral arms, skewed radial distribution, logarithmic math, refined scatter, densified bulge, gradient coloring based on `new-galaxy-generation-ideas`). (Covered by previous work, now refactored into `src/services/galaxyGenerationModules/` from `galaxyService.ts`)
-    *   **[DONE]** Implement Star Texture Variety: Load multiple star particle textures (e.g., 2-3 variations) and randomly assign them to stars for a more diverse visual appearance in the galaxy view. (Implemented, requires user to add textures)
-    *   **[TODO]** Add nebula textures using `PlaneGeometry` and transparent textures, or more `<points>` clouds. (Deferred as per `CURRENT-PROGRESS-STATUS.md`)
-    *   **[TODO]** Refine star particle appearance (general, beyond spiral structure).
-    *   **[TODO]** Add loosely scattered stars beyond the main galaxy disk.
-    *   **[TODO]** Implement globular clusters within and around the galaxy.
+1.  **[UNPLANNED FEATURE - DONE]** Live Galaxy Configuration Panel:
+    *   A significant, unplanned feature has been implemented, allowing for real-time modification of galaxy and nebula generation parameters via a UI panel (`src/components/ui/GalaxyConfigPanel.tsx`).
+    *   This feature is supported by a comprehensive `appConfig` state in `App.tsx` and new types (`AppConfig`, `ConfigurableGalaxyParams`, `ConfigurableNebulaParams`) in `src/types/galaxy.ts`.
+    *   This turns the application into a powerful, dynamic generator and debugging tool.
+
+2.  **[TASK]** Galaxy Visual Polish:
+    *   **[DONE]** Implement realistic spiral galaxy structure (central bulge, spiral arms, skewed radial distribution, logarithmic math, refined scatter, densified bulge, gradient coloring based on `new-galaxy-generation-ideas`).
+    *   **[DONE]** Implement Star Texture Variety: Load multiple star particle textures and randomly assign them.
+    *   **[DONE]** Add nebulae using PNG textures, rendered via `NebulaRenderer.tsx`.
+    *   **[DONE]** Add loosely scattered stars (halo and outer disk) via `haloStarGenerator.ts` and `outerDiskStarGenerator.ts`.
+    *   **[DONE]** Implement globular clusters via `globularClusterStarGenerator.ts`.
     *   Consider a skybox (CubeTexture) for a richer background.
-    *   **[TASK]** Implement Dynamic Level of Detail (LoD) for star rendering: The `useGalaxyLOD` hook manages automatic LOD switching. An Octree (`PointOctree.ts`) is built from all star positions to find the nearest star to the camera. The distance to this star determines the LOD level (0-3). This calculation occurs every 10 frames. If no star is found or the Octree is unavailable, distance to the galaxy origin is used as a fallback. The system also supports manual LOD overrides.
-    *   **[TASK]** Implement Optimized Camera Mode (replaces High-Speed Rotation Mode, now externally controlled and monitors performance degradation) for performance adjustments.
-2.  **[TASK]** Define Important Systems:
+
+3.  **[TASK]** Implement Dynamic Level of Detail (LoD) for star rendering:
+    *   The `useGalaxyLOD` hook manages automatic LOD switching. An Octree (`PointOctree.ts`) is built from all star positions to find the nearest star to the camera. The distance to this star determines the LOD level (0-3). This calculation occurs every 10 frames. If no star is found or the Octree is unavailable, distance to the galaxy origin is used as a fallback. The system also supports manual LOD overrides.
+
+4.  **[TASK]** Implement Optimized Camera Mode:
+    *   The `useCameraDynamics.ts` hook has been refactored. It no longer automatically toggles an optimized mode based on camera speed. Instead, it is now primarily controlled by the user via a prop (`userRequestedOptimizedMode`) from `App.tsx`, which is toggled by the UI in `LodControls.tsx`. The hook now serves to report camera speed and performance metrics upwards and respond to external state changes.
+5.  **[TASK]** Define Important Systems:
     *   Create `src/data/predefinedSystems.js` with data for a few key systems (name, specific planet configurations if desired, `isKeySystem: true`).
     *   Merge this data with procedurally generated stars in `useGalaxyGenerator.js` or apply it post-generation.
-3.  **[TASK]** Visual Distinction for Important Systems:
+6.  **[TASK]** Visual Distinction for Important Systems:
     *   **Option A (Galaxy Points):** Modify the color/size attribute in the `bufferGeometry` for these stars.
     *   **Option B (Separate Components):** In `GalaxyView.jsx`, filter out important systems from the main points cloud and render them as individual `<KeyStarMarker />` components (e.g., a small Sprite or Mesh). This allows for easier individual interaction.
-4.  **[TASK]** Planet Texture Variety:
+7.  **[TASK]** Planet Texture Variety:
     *   Source/create more planet textures.
     *   Update `PlanetData` and `PlanetMesh.jsx` to use a wider range of textures, possibly based on `planetData.type`.
-5.  **[TASK]** UI Styling and Polish:
+8.  **[TASK]** UI Styling and Polish:
     *   Improve the CSS for `InfoPanel.jsx` and `SystemInfoDisplay.jsx`.
     *   Ensure consistent look and feel.
     *   **[TASK]** Implement UI controls for toggling LoD modes and managing optimized camera mode (e.g., allowing user to request optimized state).

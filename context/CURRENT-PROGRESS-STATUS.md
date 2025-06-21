@@ -83,12 +83,11 @@
 1. Implement Galaxy Visual Polish:
     - **[DONE]** Implement star texture variety (code implemented; requires user to add `star_0.png`, `star_1.png`, `star_2.png` to `public/assets/textures/stars/`).
     - **[DONE]** Implement realistic spiral galaxy structure (central bulge, spiral arms, skewed radial distribution, logarithmic math, refined scatter, densified bulge, gradient coloring based on `new-galaxy-generation-ideas`).
-    - Add nebulae.
-    - Refine star appearance (general, beyond spiral structure).
-    - **[INFO]** Temporarily removed/deferred PNG dependencies for galaxy visuals (nebulae) to simplify initial implementation. Will revisit texture-based nebulae later.
+    - **[DONE]** Add nebulae.
+    - **[DONE]** Refine star appearance (general, beyond spiral structure).
     - **[REVIEWED]** Galaxy generation and visual appearance enhancements (spiral structure, star textures) are reflected in the codebase and this progress document.
-    - **[TODO]** Add loosely scattered stars beyond the main galaxy disk.
-    - **[TODO]** Implement globular clusters within and around the galaxy.
+    - **[DONE]** Add loosely scattered stars beyond the main galaxy disk.
+    - **[DONE]** Implement globular clusters within and around the galaxy.
     - **[DONE]** Implement Dynamic Level of Detail (LoD) for star rendering:
         - The `useGalaxyLOD` hook manages automatic LOD switching for stars.
         - An Octree data structure (`PointOctree.ts`) is built using all star positions to efficiently find the star closest to the camera.
